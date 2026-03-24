@@ -26,10 +26,11 @@ repositories {
 }
 
 dependencies {
-    api("org.slf4j:slf4j-api:$slf4jVersion")
+    compileOnly("org.slf4j:slf4j-api:$slf4jVersion")
     compileOnly("org.apache.logging.log4j:log4j-core:$log4j2Version")
     compileOnly("org.apache.logging.log4j:log4j-api:$log4j2Version")
 
+    testImplementation("org.slf4j:slf4j-api:$slf4jVersion")
     testImplementation("org.junit.jupiter:junit-jupiter:$junitVersion")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     testImplementation("org.apache.logging.log4j:log4j-core:$log4j2Version")

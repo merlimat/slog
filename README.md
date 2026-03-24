@@ -11,13 +11,14 @@ A lightweight structured logging library for Java, inspired by Go's [log/slog](h
 - **Fluent event builder** — `log.info().attr("k", "v").log("msg")` for structured events; returns a no-op singleton when the level is disabled
 - **Printf formatting** — `log.infof("Processed %d items", count)` and `log.info().logf(...)` with deferred formatting
 - **Timed events** — automatically records elapsed duration
-- **Backend auto-discovery** — delegates to Log4j2 (via ThreadContext) if available, otherwise falls back to SLF4J (via MDC)
+- **Backend auto-discovery** — delegates to Log4j2 (via ThreadContext) if available, falls back to SLF4J (via MDC); no hard runtime dependencies
 
 ## Requirements
 
 - Java 17+
-- SLF4J 2.x on the classpath (required)
-- Log4j2 on the classpath (optional, preferred when available)
+- At least one of the following logging backends on the classpath:
+  - **Log4j2** (preferred when available)
+  - **SLF4J 2.x**
 
 ## Quick Start
 

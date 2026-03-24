@@ -20,8 +20,13 @@ import io.github.merlimat.slog.Handler;
 /**
  * Auto-discovers the best available {@link Handler} implementation at startup.
  *
- * <p>If Log4j2 is on the classpath, a {@link Log4j2Handler} is used. Otherwise,
- * falls back to {@link Slf4jHandler}.
+ * <p>Discovery order:
+ * <ol>
+ *   <li>Log4j2 — if {@code org.apache.logging.log4j.LogManager} is on the classpath</li>
+ *   <li>SLF4J — if {@code org.slf4j.LoggerFactory} is on the classpath</li>
+ * </ol>
+ *
+ * <p>If neither is found, an {@link IllegalStateException} is thrown.
  */
 public class HandlerDiscovery {
     private HandlerDiscovery() {}
@@ -31,6 +36,7 @@ public class HandlerDiscovery {
     /**
      * Returns the auto-discovered handler singleton.
      * @return the shared {@link Handler} instance
+     * @throws IllegalStateException if no supported logging backend is on the classpath
      */
     public static Handler get() {
         return INSTANCE;
@@ -40,8 +46,16 @@ public class HandlerDiscovery {
         try {
             Class.forName("org.apache.logging.log4j.LogManager");
             return new Log4j2Handler();
-        } catch (ClassNotFoundException e) {
-            return new Slf4jHandler();
+        } catch (ClassNotFoundException ignored) {
         }
+
+        try {
+            Class.forName("org.slf4j.LoggerFactory");
+            return new Slf4jHandler();
+        } catch (ClassNotFoundException ignored) {
+        }
+
+        throw new IllegalStateException(
+                "No supported logging backend found. Add Log4j2 or SLF4J to the classpath.");
     }
 }
