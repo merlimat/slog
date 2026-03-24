@@ -73,7 +73,7 @@ class LoggerTest {
     @Test
     void infoWithKeyValuePairs() {
         Logger log = Logger.get("test", handler);
-        log.atInfo().attr("method", "GET").attr("path", "/api").log("request");
+        log.info().attr("method", "GET").attr("path", "/api").log("request");
 
         assertEquals(1, records.size());
         LogRecord r = records.get(0);
@@ -93,7 +93,7 @@ class LoggerTest {
                 .attr("clientAddr", "10.0.0.1")
                 .build();
 
-        log.atInfo().attr("msgId", "1:2:3").log("published");
+        log.info().attr("msgId", "1:2:3").log("published");
 
         assertEquals(1, records.size());
         LogRecord r = records.get(0);
@@ -135,7 +135,7 @@ class LoggerTest {
     void errorWithException() {
         Logger log = Logger.get("test", handler);
         RuntimeException ex = new RuntimeException("boom");
-        log.atError().attr("op", "write").exception(ex).log("failed");
+        log.error().attr("op", "write").exception(ex).log("failed");
 
         assertEquals(1, records.size());
         LogRecord r = records.get(0);
@@ -150,7 +150,7 @@ class LoggerTest {
     @Test
     void atInfoReturnsNoopWhenDisabled() {
         Logger log = Logger.get("test", handler);
-        Event event = log.atDebug();
+        Event event = log.debug();
 
         assertSame(NoopEvent.INSTANCE, event);
 
@@ -162,7 +162,7 @@ class LoggerTest {
     @Test
     void atInfoBuilderWorks() {
         Logger log = Logger.get("test", handler);
-        log.atInfo()
+        log.info()
                 .attr("key", "val")
                 .exception(new RuntimeException("err"))
                 .log("event msg");
@@ -192,7 +192,7 @@ class LoggerTest {
         };
 
         Logger log = Logger.get("test", handler, advancingClock);
-        Event e = log.atInfo().timed();
+        Event e = log.info().timed();
 
         // Advance clock by 150ms
         clockRef[0] = Clock.fixed(start.plusMillis(150), ZoneOffset.UTC);
@@ -238,7 +238,7 @@ class LoggerTest {
         Logger log = Logger.get("test", handler)
                 .with().attr("ctx", "value").build();
 
-        log.atInfo()
+        log.info()
                 .attr("event", "data")
                 .log("test");
 
@@ -253,7 +253,7 @@ class LoggerTest {
     @Test
     void nullValueHandling() {
         Logger log = Logger.get("test", handler);
-        log.atInfo().attr("key", null).log("msg");
+        log.info().attr("key", null).log("msg");
 
         assertEquals(1, records.size());
         assertNull(attrs(records.get(0)).get(0).value());
@@ -263,7 +263,7 @@ class LoggerTest {
     void warnWithException() {
         Logger log = Logger.get("test", handler);
         Exception ex = new Exception("warning");
-        log.atWarn().exception(ex).log("careful");
+        log.warn().exception(ex).log("careful");
 
         assertEquals(1, records.size());
         LogRecord r = records.get(0);
@@ -279,7 +279,7 @@ class LoggerTest {
                 .attr("namespace", "public/default")
                 .build();
 
-        log.atInfo().attr("msgId", "1:2:3").log("published");
+        log.info().attr("msgId", "1:2:3").log("published");
 
         assertEquals(1, records.size());
         List<Attr> a = attrs(records.get(0));
@@ -510,7 +510,7 @@ class LoggerTest {
                 .attr("key", "from-context")
                 .build();
 
-        log.atInfo().attr("key", "from-event").log("msg");
+        log.info().attr("key", "from-event").log("msg");
 
         List<Attr> a = attrs(records.get(0));
         assertEquals(2, a.size());

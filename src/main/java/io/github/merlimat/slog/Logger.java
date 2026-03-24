@@ -39,7 +39,7 @@ import java.util.List;
  *
  * <p><b>Zero overhead when disabled:</b> All logging methods check
  * {@link Handler#isEnabled} before constructing any objects. The fluent
- * {@code at*()} methods return a no-op {@link Event} singleton when the
+ * {@code info()}, {@code error()}, etc. return a no-op {@link Event} singleton when the
  * level is disabled.
  *
  * <p><b>Duplicate keys:</b> When the same key appears at multiple levels
@@ -185,77 +185,82 @@ public class Logger {
         }
     }
 
-    // --- Simple message logging ---
-    // For structured attributes, exceptions, or timed events, use the fluent
-    // builder: atInfo().attr("k", "v").exception(e).log("msg")
+    // --- Logging methods ---
+    // Each level has two overloads:
+    //   info(msg)  — logs a plain message, no allocations beyond the record
+    //   info()     — returns a fluent Event builder for attrs, exceptions, timing
 
-    /** Logs a message at TRACE level. No-op if TRACE is disabled.
-     * @see #atTrace() */
+    /**
+     * Logs a message at TRACE level. No-op if TRACE is disabled.
+     * For structured attributes use {@link #trace()}.
+     */
     public void trace(String msg) {
         if (!handler.isEnabled(name, Level.TRACE)) return;
         handler.handle(buildRecord(Level.TRACE, msg));
     }
 
-    /** Logs a message at DEBUG level. No-op if DEBUG is disabled.
-     * @see #atDebug() */
+    /** Returns a fluent TRACE-level event builder. No-op if TRACE is disabled. */
+    public Event trace() {
+        if (!handler.isEnabled(name, Level.TRACE)) return NoopEvent.INSTANCE;
+        return new EventImpl(this, Level.TRACE, clock);
+    }
+
+    /**
+     * Logs a message at DEBUG level. No-op if DEBUG is disabled.
+     * For structured attributes use {@link #debug()}.
+     */
     public void debug(String msg) {
         if (!handler.isEnabled(name, Level.DEBUG)) return;
         handler.handle(buildRecord(Level.DEBUG, msg));
     }
 
-    /** Logs a message at INFO level. No-op if INFO is disabled.
-     * @see #atInfo() */
+    /** Returns a fluent DEBUG-level event builder. No-op if DEBUG is disabled. */
+    public Event debug() {
+        if (!handler.isEnabled(name, Level.DEBUG)) return NoopEvent.INSTANCE;
+        return new EventImpl(this, Level.DEBUG, clock);
+    }
+
+    /**
+     * Logs a message at INFO level. No-op if INFO is disabled.
+     * For structured attributes use {@link #info()}.
+     */
     public void info(String msg) {
         if (!handler.isEnabled(name, Level.INFO)) return;
         handler.handle(buildRecord(Level.INFO, msg));
     }
 
-    /** Logs a message at WARN level. No-op if WARN is disabled.
-     * @see #atWarn() */
+    /** Returns a fluent INFO-level event builder. No-op if INFO is disabled. */
+    public Event info() {
+        if (!handler.isEnabled(name, Level.INFO)) return NoopEvent.INSTANCE;
+        return new EventImpl(this, Level.INFO, clock);
+    }
+
+    /**
+     * Logs a message at WARN level. No-op if WARN is disabled.
+     * For structured attributes use {@link #warn()}.
+     */
     public void warn(String msg) {
         if (!handler.isEnabled(name, Level.WARN)) return;
         handler.handle(buildRecord(Level.WARN, msg));
     }
 
-    /** Logs a message at ERROR level. No-op if ERROR is disabled.
-     * @see #atError() */
+    /** Returns a fluent WARN-level event builder. No-op if WARN is disabled. */
+    public Event warn() {
+        if (!handler.isEnabled(name, Level.WARN)) return NoopEvent.INSTANCE;
+        return new EventImpl(this, Level.WARN, clock);
+    }
+
+    /**
+     * Logs a message at ERROR level. No-op if ERROR is disabled.
+     * For structured attributes use {@link #error()}.
+     */
     public void error(String msg) {
         if (!handler.isEnabled(name, Level.ERROR)) return;
         handler.handle(buildRecord(Level.ERROR, msg));
     }
 
-    // --- Fluent builder (returns NoopEvent when disabled) ---
-
-    /**
-     * Starts building a TRACE-level event. Returns a no-op if TRACE is disabled.
-     *
-     * @return an {@link Event} builder, or a no-op singleton
-     */
-    public Event atTrace() {
-        if (!handler.isEnabled(name, Level.TRACE)) return NoopEvent.INSTANCE;
-        return new EventImpl(this, Level.TRACE, clock);
-    }
-
-    /** Starts building a DEBUG-level event. Returns a no-op if DEBUG is disabled. */
-    public Event atDebug() {
-        if (!handler.isEnabled(name, Level.DEBUG)) return NoopEvent.INSTANCE;
-        return new EventImpl(this, Level.DEBUG, clock);
-    }
-
-    /** Starts building an INFO-level event. Returns a no-op if INFO is disabled. */
-    public Event atInfo() {
-        if (!handler.isEnabled(name, Level.INFO)) return NoopEvent.INSTANCE;
-        return new EventImpl(this, Level.INFO, clock);
-    }
-
-    /** Starts building a WARN-level event. Returns a no-op if WARN is disabled. */
-    public Event atWarn() {
-        if (!handler.isEnabled(name, Level.WARN)) return NoopEvent.INSTANCE;
-        return new EventImpl(this, Level.WARN, clock);
-    }
-
-    /** Starts building an ERROR-level event. Returns a no-op if ERROR is disabled. */
-    public Event atError() {
+    /** Returns a fluent ERROR-level event builder. No-op if ERROR is disabled. */
+    public Event error() {
         if (!handler.isEnabled(name, Level.ERROR)) return NoopEvent.INSTANCE;
         return new EventImpl(this, Level.ERROR, clock);
     }

@@ -24,7 +24,7 @@ package io.github.merlimat.slog;
  *
  * <p>Example usage:
  * <pre>{@code
- * logger.atInfo()
+ * logger.info()
  *       .attr("orderId", orderId)
  *       .attr("items", itemCount)
  *       .timed()

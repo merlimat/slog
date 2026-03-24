@@ -74,7 +74,7 @@ class Log4j2JsonOutputTest {
     void jsonOutputContainsStructuredAttributes() throws Exception {
         String json = captureJsonOutput(() -> {
             Logger log = Logger.get(LOGGER_NAME);
-            log.atInfo()
+            log.info()
                     .attr("method", "GET")
                     .attr("path", "/api/orders")
                     .attr("status", 200)
@@ -107,7 +107,7 @@ class Log4j2JsonOutputTest {
                     .attr("clientAddr", "10.0.0.1")
                     .build();
 
-            log.atError()
+            log.error()
                     .attr("msgId", "1:2:3")
                     .exception(new RuntimeException("Connection reset"))
                     .log("Publish failed");
@@ -138,7 +138,7 @@ class Log4j2JsonOutputTest {
                     .attr("namespace", "public/default")
                     .build();
 
-            log.atInfo()
+            log.info()
                     .attr("orderId", "ORD-12345")
                     .attr("items", 3)
                     .attr("total", 59.99)
