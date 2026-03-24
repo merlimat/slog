@@ -377,4 +377,146 @@ class LoggerTest {
         assertEquals(1, a.size());
         assertEquals("key", a.get(0).key());
     }
+
+    @Test
+    void multipleCtxCallsAppendInOrder() {
+        Logger producerLog = Logger.get("producer", handler).with()
+                .attr("topic", "orders")
+                .attr("clientAddr", "10.0.0.1")
+                .build();
+
+        Logger requestLog = Logger.get("request", handler).with()
+                .attr("requestId", "req-42")
+                .attr("traceId", "abc-123")
+                .build();
+
+        Logger log = Logger.get("test", handler).with()
+                .ctx(producerLog)
+                .ctx(requestLog)
+                .attr("extra", "val")
+                .build();
+
+        log.info("combined");
+
+        assertEquals(1, records.size());
+        List<Attr> a = attrs(records.get(0));
+        assertEquals(5, a.size());
+        // producerLog attrs first (first ctx call)
+        assertEquals("topic", a.get(0).key());
+        assertEquals("clientAddr", a.get(1).key());
+        // requestLog attrs next (second ctx call)
+        assertEquals("requestId", a.get(2).key());
+        assertEquals("traceId", a.get(3).key());
+        // builder attrs last
+        assertEquals("extra", a.get(4).key());
+    }
+
+    @Test
+    void multipleCtxWithEmptyInBetween() {
+        Logger log1 = Logger.get("s1", handler).with().attr("a", 1).build();
+        Logger empty = Logger.get("empty", handler);
+        Logger log2 = Logger.get("s2", handler).with().attr("b", 2).build();
+
+        Logger log = Logger.get("test", handler).with()
+                .ctx(log1)
+                .ctx(empty)
+                .ctx(log2)
+                .build();
+
+        log.info("msg");
+
+        List<Attr> a = attrs(records.get(0));
+        assertEquals(2, a.size());
+        assertEquals("a", a.get(0).key());
+        assertEquals("b", a.get(1).key());
+    }
+
+    @Test
+    void duplicateKeysAcrossLevelsArePreserved() {
+        // Duplicate keys at different levels are all kept — last-writer-wins
+        // is left to the handler/backend, not the logger.
+        Logger parent = Logger.get("test", handler).with()
+                .attr("env", "staging")
+                .build();
+
+        Logger child = parent.with()
+                .attr("env", "production")
+                .attr("extra", "val")
+                .build();
+
+        child.info("msg");
+
+        List<Attr> a = attrs(records.get(0));
+        assertEquals(3, a.size());
+        // Parent attr comes first
+        assertEquals("env", a.get(0).key());
+        assertEquals("staging", a.get(0).value());
+        // Child attr with same key comes after
+        assertEquals("env", a.get(1).key());
+        assertEquals("production", a.get(1).value());
+        assertEquals("extra", a.get(2).key());
+    }
+
+    @Test
+    void duplicateKeysAcrossCtxAndBuilder() {
+        Logger log1 = Logger.get("s1", handler).with()
+                .attr("region", "us-east")
+                .build();
+
+        Logger log = Logger.get("test", handler).with()
+                .ctx(log1)
+                .attr("region", "eu-west")
+                .build();
+
+        log.info("msg");
+
+        List<Attr> a = attrs(records.get(0));
+        assertEquals(2, a.size());
+        // ctx attrs first
+        assertEquals("region", a.get(0).key());
+        assertEquals("us-east", a.get(0).value());
+        // builder attr with same key after
+        assertEquals("region", a.get(1).key());
+        assertEquals("eu-west", a.get(1).value());
+    }
+
+    @Test
+    void duplicateKeysAcrossMultipleCtx() {
+        Logger log1 = Logger.get("s1", handler).with()
+                .attr("id", "from-log1")
+                .build();
+        Logger log2 = Logger.get("s2", handler).with()
+                .attr("id", "from-log2")
+                .build();
+
+        Logger log = Logger.get("test", handler).with()
+                .ctx(log1)
+                .ctx(log2)
+                .build();
+
+        log.info("msg");
+
+        List<Attr> a = attrs(records.get(0));
+        assertEquals(2, a.size());
+        assertEquals("id", a.get(0).key());
+        assertEquals("from-log1", a.get(0).value());
+        assertEquals("id", a.get(1).key());
+        assertEquals("from-log2", a.get(1).value());
+    }
+
+    @Test
+    void duplicateKeysInEventKvs() {
+        Logger log = Logger.get("test", handler).with()
+                .attr("key", "from-context")
+                .build();
+
+        log.info("msg", "key", "from-event");
+
+        List<Attr> a = attrs(records.get(0));
+        assertEquals(2, a.size());
+        assertEquals("key", a.get(0).key());
+        assertEquals("from-context", a.get(0).value());
+        assertEquals("key", a.get(1).key());
+        assertEquals("from-event", a.get(1).value());
+    }
 }

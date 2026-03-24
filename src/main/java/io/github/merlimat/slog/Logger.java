@@ -41,6 +41,11 @@ import java.util.List;
  * {@link Handler#isEnabled} before constructing any objects. The fluent
  * {@code at*()} methods return a no-op {@link Event} singleton when the
  * level is disabled.
+ *
+ * <p><b>Duplicate keys:</b> When the same key appears at multiple levels
+ * (parent context, inherited via {@link Builder#ctx}, builder attrs, or
+ * per-event kvs), all occurrences are preserved in order. Resolution
+ * (last-writer-wins, etc.) is left to the logging backend.
  */
 public class Logger {
     private final String name;
@@ -117,29 +122,33 @@ public class Logger {
     public static final class Builder {
         private final Logger parent;
         private final List<Attr> attrs = new ArrayList<>();
-        private AttrChain inherited;
+        private AttrChain inherited = AttrChain.EMPTY;
 
         Builder(Logger parent) {
             this.parent = parent;
         }
 
         /**
-         * Inherits all context attributes from another logger. This is used to
-         * propagate context across component boundaries.
+         * Inherits all context attributes from another logger. Can be called
+         * multiple times to compose context from several sources — attrs are
+         * appended in call order.
          *
          * <pre>{@code
-         * Logger log2 = Logger.get(MyClass2.class).with()
-         *     .ctx(log1)
-         *     .attr("extra", "val")
+         * Logger log = Logger.get(MyClass.class).with()
+         *     .ctx(producerLog)   // adds topic, clientAddr
+         *     .ctx(requestLog)    // adds requestId, traceId
+         *     .attr("extra", v)
          *     .build();
-         * // log2 carries all of log1's attrs, plus "extra"
+         * // order: producerLog attrs → requestLog attrs → extra
          * }</pre>
          *
          * @param other the logger whose context to inherit
          * @return this builder, for chaining
          */
         public Builder ctx(Logger other) {
-            this.inherited = other.contextAttrs;
+            if (!other.contextAttrs.isEmpty()) {
+                inherited = other.contextAttrs.withPrefix(inherited);
+            }
             return this;
         }
 
@@ -163,7 +172,7 @@ public class Logger {
          */
         public Logger build() {
             AttrChain chain = parent.contextAttrs;
-            if (inherited != null) {
+            if (!inherited.isEmpty()) {
                 chain = chain.withPrefix(inherited);
             }
             if (!attrs.isEmpty()) {
