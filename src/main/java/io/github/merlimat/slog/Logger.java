@@ -185,99 +185,43 @@ public class Logger {
         }
     }
 
-    // --- Message-only overloads (no allocation beyond the record) ---
+    // --- Simple message logging ---
+    // For structured attributes, exceptions, or timed events, use the fluent
+    // builder: atInfo().attr("k", "v").exception(e).log("msg")
 
-    /** Logs a message at TRACE level. No-op if TRACE is disabled. */
+    /** Logs a message at TRACE level. No-op if TRACE is disabled.
+     * @see #atTrace() */
     public void trace(String msg) {
         if (!handler.isEnabled(name, Level.TRACE)) return;
-        handler.handle(buildRecord(Level.TRACE, msg, null));
+        handler.handle(buildRecord(Level.TRACE, msg));
     }
 
-    /** Logs a message at DEBUG level. No-op if DEBUG is disabled. */
+    /** Logs a message at DEBUG level. No-op if DEBUG is disabled.
+     * @see #atDebug() */
     public void debug(String msg) {
         if (!handler.isEnabled(name, Level.DEBUG)) return;
-        handler.handle(buildRecord(Level.DEBUG, msg, null));
+        handler.handle(buildRecord(Level.DEBUG, msg));
     }
 
-    /** Logs a message at INFO level. No-op if INFO is disabled. */
+    /** Logs a message at INFO level. No-op if INFO is disabled.
+     * @see #atInfo() */
     public void info(String msg) {
         if (!handler.isEnabled(name, Level.INFO)) return;
-        handler.handle(buildRecord(Level.INFO, msg, null));
+        handler.handle(buildRecord(Level.INFO, msg));
     }
 
-    /** Logs a message at WARN level. No-op if WARN is disabled. */
+    /** Logs a message at WARN level. No-op if WARN is disabled.
+     * @see #atWarn() */
     public void warn(String msg) {
         if (!handler.isEnabled(name, Level.WARN)) return;
-        handler.handle(buildRecord(Level.WARN, msg, null));
+        handler.handle(buildRecord(Level.WARN, msg));
     }
 
-    /** Logs a message at ERROR level. No-op if ERROR is disabled. */
+    /** Logs a message at ERROR level. No-op if ERROR is disabled.
+     * @see #atError() */
     public void error(String msg) {
         if (!handler.isEnabled(name, Level.ERROR)) return;
-        handler.handle(buildRecord(Level.ERROR, msg, null));
-    }
-
-    // --- Message + inline key-value pairs ---
-
-    /**
-     * Logs a message at TRACE level with inline key-value pairs.
-     *
-     * @param msg the log message
-     * @param kvs alternating key-value pairs: {@code "key1", value1, "key2", value2, ...}
-     */
-    public void trace(String msg, Object... kvs) {
-        if (!handler.isEnabled(name, Level.TRACE)) return;
-        handler.handle(buildRecord(Level.TRACE, msg, kvs, null));
-    }
-
-    /** Logs a message at DEBUG level with inline key-value pairs. See {@link #trace(String, Object...)}. */
-    public void debug(String msg, Object... kvs) {
-        if (!handler.isEnabled(name, Level.DEBUG)) return;
-        handler.handle(buildRecord(Level.DEBUG, msg, kvs, null));
-    }
-
-    /** Logs a message at INFO level with inline key-value pairs. See {@link #trace(String, Object...)}. */
-    public void info(String msg, Object... kvs) {
-        if (!handler.isEnabled(name, Level.INFO)) return;
-        handler.handle(buildRecord(Level.INFO, msg, kvs, null));
-    }
-
-    /** Logs a message at WARN level with inline key-value pairs. See {@link #trace(String, Object...)}. */
-    public void warn(String msg, Object... kvs) {
-        if (!handler.isEnabled(name, Level.WARN)) return;
-        handler.handle(buildRecord(Level.WARN, msg, kvs, null));
-    }
-
-    /** Logs a message at ERROR level with inline key-value pairs. See {@link #trace(String, Object...)}. */
-    public void error(String msg, Object... kvs) {
-        if (!handler.isEnabled(name, Level.ERROR)) return;
-        handler.handle(buildRecord(Level.ERROR, msg, kvs, null));
-    }
-
-    // --- With exception ---
-
-    /**
-     * Logs a message at WARN level with an exception and optional key-value pairs.
-     *
-     * @param msg the log message
-     * @param t   the throwable to attach
-     * @param kvs alternating key-value pairs
-     */
-    public void warn(String msg, Throwable t, Object... kvs) {
-        if (!handler.isEnabled(name, Level.WARN)) return;
-        handler.handle(buildRecord(Level.WARN, msg, kvs, t));
-    }
-
-    /**
-     * Logs a message at ERROR level with an exception and optional key-value pairs.
-     *
-     * @param msg the log message
-     * @param t   the throwable to attach
-     * @param kvs alternating key-value pairs
-     */
-    public void error(String msg, Throwable t, Object... kvs) {
-        if (!handler.isEnabled(name, Level.ERROR)) return;
-        handler.handle(buildRecord(Level.ERROR, msg, kvs, t));
+        handler.handle(buildRecord(Level.ERROR, msg));
     }
 
     // --- Fluent builder (returns NoopEvent when disabled) ---
@@ -349,27 +293,7 @@ public class Logger {
 
     // --- Private helpers ---
 
-    private LogRecord buildRecord(Level level, String msg, Throwable throwable) {
-        return new LogRecord(name, level, msg, contextAttrs, throwable, clock.instant(), null);
-    }
-
-    private LogRecord buildRecord(Level level, String msg, Object[] kvs, Throwable throwable) {
-        Iterable<Attr> allAttrs = mergeKvs(kvs);
-        return new LogRecord(name, level, msg, allAttrs, throwable, clock.instant(), null);
-    }
-
-    private Iterable<Attr> mergeKvs(Object[] kvs) {
-        if (kvs == null || kvs.length == 0) {
-            return contextAttrs;
-        }
-
-        List<Attr> eventAttrs = new ArrayList<>(kvs.length / 2);
-        for (int i = 0; i < kvs.length - 1; i += 2) {
-            eventAttrs.add(Attr.of(String.valueOf(kvs[i]), kvs[i + 1]));
-        }
-        if (contextAttrs.isEmpty()) {
-            return eventAttrs;
-        }
-        return contextAttrs.with(eventAttrs);
+    private LogRecord buildRecord(Level level, String msg) {
+        return new LogRecord(name, level, msg, contextAttrs, null, clock.instant(), null);
     }
 }

@@ -74,7 +74,7 @@ class Log4j2TextOutputTest {
                             .attr("topic", "orders")
                             .attr("clientAddr", "10.0.0.1")
                             .build();
-                    log.info("Message published", "msgId", "1:2:3");
+                    log.atInfo().attr("msgId", "1:2:3").log("Message published");
                 });
 
         System.out.println("\n--- Log4j2 text output (%X = full context map) ---");
@@ -118,7 +118,7 @@ class Log4j2TextOutputTest {
                     Logger log = Logger.get(LOGGER_NAME).with()
                             .attr("op", "publish")
                             .build();
-                    log.error("Failed", new RuntimeException("Connection reset"));
+                    log.atError().exception(new RuntimeException("Connection reset")).log("Failed");
                 });
 
         System.out.println("\n--- Log4j2 text output (with exception) ---");

@@ -73,7 +73,7 @@ class LoggerTest {
     @Test
     void infoWithKeyValuePairs() {
         Logger log = Logger.get("test", handler);
-        log.info("request", "method", "GET", "path", "/api");
+        log.atInfo().attr("method", "GET").attr("path", "/api").log("request");
 
         assertEquals(1, records.size());
         LogRecord r = records.get(0);
@@ -93,7 +93,7 @@ class LoggerTest {
                 .attr("clientAddr", "10.0.0.1")
                 .build();
 
-        log.info("published", "msgId", "1:2:3");
+        log.atInfo().attr("msgId", "1:2:3").log("published");
 
         assertEquals(1, records.size());
         LogRecord r = records.get(0);
@@ -135,7 +135,7 @@ class LoggerTest {
     void errorWithException() {
         Logger log = Logger.get("test", handler);
         RuntimeException ex = new RuntimeException("boom");
-        log.error("failed", ex, "op", "write");
+        log.atError().attr("op", "write").exception(ex).log("failed");
 
         assertEquals(1, records.size());
         LogRecord r = records.get(0);
@@ -253,7 +253,7 @@ class LoggerTest {
     @Test
     void nullValueHandling() {
         Logger log = Logger.get("test", handler);
-        log.info("msg", "key", null);
+        log.atInfo().attr("key", null).log("msg");
 
         assertEquals(1, records.size());
         assertNull(attrs(records.get(0)).get(0).value());
@@ -263,7 +263,7 @@ class LoggerTest {
     void warnWithException() {
         Logger log = Logger.get("test", handler);
         Exception ex = new Exception("warning");
-        log.warn("careful", ex);
+        log.atWarn().exception(ex).log("careful");
 
         assertEquals(1, records.size());
         LogRecord r = records.get(0);
@@ -279,7 +279,7 @@ class LoggerTest {
                 .attr("namespace", "public/default")
                 .build();
 
-        log.info("published", "msgId", "1:2:3");
+        log.atInfo().attr("msgId", "1:2:3").log("published");
 
         assertEquals(1, records.size());
         List<Attr> a = attrs(records.get(0));
@@ -505,12 +505,12 @@ class LoggerTest {
     }
 
     @Test
-    void duplicateKeysInEventKvs() {
+    void duplicateKeysInEventAttrs() {
         Logger log = Logger.get("test", handler).with()
                 .attr("key", "from-context")
                 .build();
 
-        log.info("msg", "key", "from-event");
+        log.atInfo().attr("key", "from-event").log("msg");
 
         List<Attr> a = attrs(records.get(0));
         assertEquals(2, a.size());
