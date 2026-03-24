@@ -191,91 +191,141 @@ public class Logger {
     //   infof(format, args)   — logs a printf-formatted message
     //   info()                — returns a fluent Event builder
 
-    /** Logs a message at TRACE level. No-op if TRACE is disabled. */
+    /**
+     * Logs a message at TRACE level. No-op if TRACE is disabled.
+     * @param msg the log message
+     */
     public void trace(String msg) {
         if (!handler.isEnabled(name, Level.TRACE)) return;
         handler.handle(buildRecord(Level.TRACE, msg));
     }
 
-    /** Logs a printf-formatted message at TRACE level. No-op if TRACE is disabled. */
+    /**
+     * Logs a printf-formatted message at TRACE level. No-op if TRACE is disabled.
+     * @param format the format string (as in {@link String#format})
+     * @param args   the format arguments
+     */
     public void tracef(String format, Object... args) {
         if (!handler.isEnabled(name, Level.TRACE)) return;
         handler.handle(buildRecord(Level.TRACE, String.format(format, args)));
     }
 
-    /** Returns a fluent TRACE-level event builder. No-op if TRACE is disabled. */
+    /**
+     * Returns a fluent TRACE-level event builder. No-op if TRACE is disabled.
+     * @return an {@link Event} builder, or a no-op singleton
+     */
     public Event trace() {
         if (!handler.isEnabled(name, Level.TRACE)) return NoopEvent.INSTANCE;
         return new EventImpl(this, Level.TRACE, clock);
     }
 
-    /** Logs a message at DEBUG level. No-op if DEBUG is disabled. */
+    /**
+     * Logs a message at DEBUG level. No-op if DEBUG is disabled.
+     * @param msg the log message
+     */
     public void debug(String msg) {
         if (!handler.isEnabled(name, Level.DEBUG)) return;
         handler.handle(buildRecord(Level.DEBUG, msg));
     }
 
-    /** Logs a printf-formatted message at DEBUG level. No-op if DEBUG is disabled. */
+    /**
+     * Logs a printf-formatted message at DEBUG level. No-op if DEBUG is disabled.
+     * @param format the format string (as in {@link String#format})
+     * @param args   the format arguments
+     */
     public void debugf(String format, Object... args) {
         if (!handler.isEnabled(name, Level.DEBUG)) return;
         handler.handle(buildRecord(Level.DEBUG, String.format(format, args)));
     }
 
-    /** Returns a fluent DEBUG-level event builder. No-op if DEBUG is disabled. */
+    /**
+     * Returns a fluent DEBUG-level event builder. No-op if DEBUG is disabled.
+     * @return an {@link Event} builder, or a no-op singleton
+     */
     public Event debug() {
         if (!handler.isEnabled(name, Level.DEBUG)) return NoopEvent.INSTANCE;
         return new EventImpl(this, Level.DEBUG, clock);
     }
 
-    /** Logs a message at INFO level. No-op if INFO is disabled. */
+    /**
+     * Logs a message at INFO level. No-op if INFO is disabled.
+     * @param msg the log message
+     */
     public void info(String msg) {
         if (!handler.isEnabled(name, Level.INFO)) return;
         handler.handle(buildRecord(Level.INFO, msg));
     }
 
-    /** Logs a printf-formatted message at INFO level. No-op if INFO is disabled. */
+    /**
+     * Logs a printf-formatted message at INFO level. No-op if INFO is disabled.
+     * @param format the format string (as in {@link String#format})
+     * @param args   the format arguments
+     */
     public void infof(String format, Object... args) {
         if (!handler.isEnabled(name, Level.INFO)) return;
         handler.handle(buildRecord(Level.INFO, String.format(format, args)));
     }
 
-    /** Returns a fluent INFO-level event builder. No-op if INFO is disabled. */
+    /**
+     * Returns a fluent INFO-level event builder. No-op if INFO is disabled.
+     * @return an {@link Event} builder, or a no-op singleton
+     */
     public Event info() {
         if (!handler.isEnabled(name, Level.INFO)) return NoopEvent.INSTANCE;
         return new EventImpl(this, Level.INFO, clock);
     }
 
-    /** Logs a message at WARN level. No-op if WARN is disabled. */
+    /**
+     * Logs a message at WARN level. No-op if WARN is disabled.
+     * @param msg the log message
+     */
     public void warn(String msg) {
         if (!handler.isEnabled(name, Level.WARN)) return;
         handler.handle(buildRecord(Level.WARN, msg));
     }
 
-    /** Logs a printf-formatted message at WARN level. No-op if WARN is disabled. */
+    /**
+     * Logs a printf-formatted message at WARN level. No-op if WARN is disabled.
+     * @param format the format string (as in {@link String#format})
+     * @param args   the format arguments
+     */
     public void warnf(String format, Object... args) {
         if (!handler.isEnabled(name, Level.WARN)) return;
         handler.handle(buildRecord(Level.WARN, String.format(format, args)));
     }
 
-    /** Returns a fluent WARN-level event builder. No-op if WARN is disabled. */
+    /**
+     * Returns a fluent WARN-level event builder. No-op if WARN is disabled.
+     * @return an {@link Event} builder, or a no-op singleton
+     */
     public Event warn() {
         if (!handler.isEnabled(name, Level.WARN)) return NoopEvent.INSTANCE;
         return new EventImpl(this, Level.WARN, clock);
     }
 
-    /** Logs a message at ERROR level. No-op if ERROR is disabled. */
+    /**
+     * Logs a message at ERROR level. No-op if ERROR is disabled.
+     * @param msg the log message
+     */
     public void error(String msg) {
         if (!handler.isEnabled(name, Level.ERROR)) return;
         handler.handle(buildRecord(Level.ERROR, msg));
     }
 
-    /** Logs a printf-formatted message at ERROR level. No-op if ERROR is disabled. */
+    /**
+     * Logs a printf-formatted message at ERROR level. No-op if ERROR is disabled.
+     * @param format the format string (as in {@link String#format})
+     * @param args   the format arguments
+     */
     public void errorf(String format, Object... args) {
         if (!handler.isEnabled(name, Level.ERROR)) return;
         handler.handle(buildRecord(Level.ERROR, String.format(format, args)));
     }
 
-    /** Returns a fluent ERROR-level event builder. No-op if ERROR is disabled. */
+    /**
+     * Returns a fluent ERROR-level event builder. No-op if ERROR is disabled.
+     * @return an {@link Event} builder, or a no-op singleton
+     */
     public Event error() {
         if (!handler.isEnabled(name, Level.ERROR)) return NoopEvent.INSTANCE;
         return new EventImpl(this, Level.ERROR, clock);

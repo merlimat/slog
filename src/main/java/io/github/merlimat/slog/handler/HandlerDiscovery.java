@@ -24,8 +24,14 @@ import io.github.merlimat.slog.Handler;
  * falls back to {@link Slf4jHandler}.
  */
 public class HandlerDiscovery {
+    private HandlerDiscovery() {}
+
     private static final Handler INSTANCE = discover();
 
+    /**
+     * Returns the auto-discovered handler singleton.
+     * @return the shared {@link Handler} instance
+     */
     public static Handler get() {
         return INSTANCE;
     }

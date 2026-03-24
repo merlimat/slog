@@ -36,6 +36,9 @@ import org.apache.logging.log4j.ThreadContext;
  * is present on the classpath.
  */
 public class Log4j2Handler implements Handler {
+    /** Creates a new Log4j2 handler. */
+    public Log4j2Handler() {}
+
     private final ConcurrentHashMap<String, Logger> loggers = new ConcurrentHashMap<>();
 
     @Override

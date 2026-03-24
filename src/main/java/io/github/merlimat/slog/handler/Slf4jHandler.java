@@ -34,6 +34,9 @@ import org.slf4j.MDC;
  * <p>This handler is the default fallback when Log4j2 is not on the classpath.
  */
 public class Slf4jHandler implements Handler {
+    /** Creates a new SLF4J handler. */
+    public Slf4jHandler() {}
+
     private final ConcurrentHashMap<String, Logger> loggers = new ConcurrentHashMap<>();
 
     @Override

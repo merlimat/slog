@@ -19,9 +19,14 @@ package io.github.merlimat.slog;
  * Log severity levels, ordered from least to most severe.
  */
 public enum Level {
+    /** Finest-grained informational events. */
     TRACE,
+    /** Fine-grained informational events useful for debugging. */
     DEBUG,
+    /** Informational messages highlighting progress of the application. */
     INFO,
+    /** Potentially harmful situations. */
     WARN,
+    /** Error events that might still allow the application to continue. */
     ERROR
 }
