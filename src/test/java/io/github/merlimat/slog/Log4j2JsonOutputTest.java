@@ -98,9 +98,10 @@ class Log4j2JsonOutputTest {
     @Test
     void jsonOutputWithContextAndException() throws Exception {
         String json = captureJsonOutput(() -> {
-            Logger log = Logger.get(LOGGER_NAME)
-                    .with("topic", "persistent://public/default/orders")
-                    .with("clientAddr", "10.0.0.1");
+            Logger log = Logger.get(LOGGER_NAME).with()
+                    .attr("topic", "persistent://public/default/orders")
+                    .attr("clientAddr", "10.0.0.1")
+                    .build();
 
             log.error("Publish failed", new RuntimeException("Connection reset"),
                     "msgId", "1:2:3");
@@ -127,8 +128,9 @@ class Log4j2JsonOutputTest {
     @Test
     void jsonOutputWithFluentBuilder() throws Exception {
         String json = captureJsonOutput(() -> {
-            Logger log = Logger.get(LOGGER_NAME)
-                    .with("namespace", "public/default");
+            Logger log = Logger.get(LOGGER_NAME).with()
+                    .attr("namespace", "public/default")
+                    .build();
 
             log.atInfo()
                     .attr("orderId", "ORD-12345")

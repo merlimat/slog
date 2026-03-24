@@ -88,9 +88,10 @@ class LoggerTest {
 
     @Test
     void contextPropagationWithWith() {
-        Logger log = Logger.get("test", handler)
-                .with("topic", "persistent://t")
-                .with("clientAddr", "10.0.0.1");
+        Logger log = Logger.get("test", handler).with()
+                .attr("topic", "persistent://t")
+                .attr("clientAddr", "10.0.0.1")
+                .build();
 
         log.info("published", "msgId", "1:2:3");
 
@@ -109,7 +110,7 @@ class LoggerTest {
     @Test
     void withCreatesNewLogger() {
         Logger base = Logger.get("test", handler);
-        Logger derived = base.with("key", "val");
+        Logger derived = base.with().attr("key", "val").build();
 
         assertNotSame(base, derived);
 
@@ -235,7 +236,7 @@ class LoggerTest {
     @Test
     void contextAttrsWithEventBuilder() {
         Logger log = Logger.get("test", handler)
-                .with("ctx", "value");
+                .with().attr("ctx", "value").build();
 
         log.atInfo()
                 .attr("event", "data")
@@ -299,10 +300,9 @@ class LoggerTest {
 
     @Test
     void deepChainPreservesParentFirstOrder() {
-        Logger root = Logger.get("test", handler)
-                .with("a", 1);
-        Logger child = root.with("b", 2);
-        Logger grandchild = child.with("c", 3);
+        Logger root = Logger.get("test", handler).with().attr("a", 1).build();
+        Logger child = root.with().attr("b", 2).build();
+        Logger grandchild = child.with().attr("c", 3).build();
 
         grandchild.info("deep");
 
@@ -316,11 +316,10 @@ class LoggerTest {
 
     @Test
     void siblingsShareParentAttrs() {
-        Logger parent = Logger.get("test", handler)
-                .with("shared", "val");
+        Logger parent = Logger.get("test", handler).with().attr("shared", "val").build();
 
-        Logger child1 = parent.with("child", "1");
-        Logger child2 = parent.with("child", "2");
+        Logger child1 = parent.with().attr("child", "1").build();
+        Logger child2 = parent.with().attr("child", "2").build();
 
         child1.info("from child1");
         child2.info("from child2");

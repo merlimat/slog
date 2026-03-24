@@ -93,18 +93,6 @@ public class Logger {
     }
 
     /**
-     * Returns a new Logger with an additional context attribute. The original logger
-     * is unchanged. Parent attributes are shared, not copied.
-     *
-     * @param key   the attribute name
-     * @param value the attribute value
-     * @return a new {@code Logger} with the added context attribute
-     */
-    public Logger with(String key, Object value) {
-        return new Logger(name, handler, contextAttrs.with(Attr.of(key, value)), clock);
-    }
-
-    /**
      * Returns a {@link Builder} for constructing a child logger with multiple
      * context attributes in a single step.
      *
