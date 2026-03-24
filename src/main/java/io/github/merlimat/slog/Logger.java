@@ -17,10 +17,7 @@ package io.github.merlimat.slog;
 
 import java.time.Clock;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Iterator;
 import java.util.List;
-import java.util.NoSuchElementException;
 
 /**
  * A structured logger that emits log records with attached key-value attributes.
@@ -46,10 +43,10 @@ import java.util.NoSuchElementException;
 public class Logger {
     private final String name;
     private final Handler handler;
-    private final List<Attr> contextAttrs;
+    private final AttrChain contextAttrs;
     private final Clock clock;
 
-    Logger(String name, Handler handler, List<Attr> contextAttrs, Clock clock) {
+    Logger(String name, Handler handler, AttrChain contextAttrs, Clock clock) {
         this.name = name;
         this.handler = handler;
         this.contextAttrs = contextAttrs;
@@ -58,31 +55,71 @@ public class Logger {
 
     /**
      * Returns a new Logger with an additional context attribute. The original logger
-     * is unchanged.
+     * is unchanged. Parent attributes are shared, not copied.
      *
      * @param key   the attribute name
      * @param value the attribute value
      * @return a new {@code Logger} with the added context attribute
      */
     public Logger with(String key, Object value) {
-        List<Attr> newAttrs = new ArrayList<>(contextAttrs.size() + 1);
-        newAttrs.addAll(contextAttrs);
-        newAttrs.add(Attr.of(key, value));
-        return new Logger(name, handler, Collections.unmodifiableList(newAttrs), clock);
+        return new Logger(name, handler, contextAttrs.with(Attr.of(key, value)), clock);
     }
 
     /**
-     * Returns a new Logger with additional context attributes. The original logger
-     * is unchanged.
+     * Returns a {@link Builder} for constructing a child logger with multiple
+     * context attributes in a single step.
      *
-     * @param attrs the attributes to add
-     * @return a new {@code Logger} with the added context attributes
+     * <pre>{@code
+     * Logger child = parent.with()
+     *     .attr("topic", topic)
+     *     .attr("clientAddr", addr)
+     *     .attr("namespace", ns)
+     *     .build();
+     * }</pre>
+     *
+     * @return a new builder rooted at this logger
      */
-    public Logger with(Attr... attrs) {
-        List<Attr> newAttrs = new ArrayList<>(contextAttrs.size() + attrs.length);
-        newAttrs.addAll(contextAttrs);
-        Collections.addAll(newAttrs, attrs);
-        return new Logger(name, handler, Collections.unmodifiableList(newAttrs), clock);
+    public Builder with() {
+        return new Builder(this);
+    }
+
+    /**
+     * A builder for constructing a child logger with multiple context attributes
+     * batched into a single chain node, avoiding intermediate Logger instances.
+     */
+    public static final class Builder {
+        private final Logger parent;
+        private final List<Attr> attrs = new ArrayList<>();
+
+        Builder(Logger parent) {
+            this.parent = parent;
+        }
+
+        /**
+         * Adds a context attribute to the child logger being built.
+         *
+         * @param key   the attribute name
+         * @param value the attribute value
+         * @return this builder, for chaining
+         */
+        public Builder attr(String key, Object value) {
+            attrs.add(Attr.of(key, value));
+            return this;
+        }
+
+        /**
+         * Builds and returns the child logger with all accumulated attributes
+         * as a single chain node.
+         *
+         * @return a new {@code Logger} with the added context attributes
+         */
+        public Logger build() {
+            if (attrs.isEmpty()) {
+                return parent;
+            }
+            return new Logger(parent.name, parent.handler,
+                    parent.contextAttrs.with(attrs), parent.clock);
+        }
     }
 
     // --- Message-only overloads (no allocation beyond the record) ---
@@ -243,7 +280,8 @@ public class Logger {
         if (contextAttrs.isEmpty()) {
             return eventAttrs;
         }
-        return new CompositeIterable<>(contextAttrs, eventAttrs);
+        // Create a child chain node with the event attrs, backed by context chain
+        return contextAttrs.with(eventAttrs);
     }
 
     // --- Private helpers ---
@@ -269,46 +307,6 @@ public class Logger {
         if (contextAttrs.isEmpty()) {
             return eventAttrs;
         }
-        return new CompositeIterable<>(contextAttrs, eventAttrs);
-    }
-
-    /**
-     * A zero-copy iterable view over two lists, yielding all elements of the first
-     * followed by all elements of the second.
-     */
-    static final class CompositeIterable<T> implements Iterable<T> {
-        private final List<T> first;
-        private final List<T> second;
-
-        CompositeIterable(List<T> first, List<T> second) {
-            this.first = first;
-            this.second = second;
-        }
-
-        @Override
-        public Iterator<T> iterator() {
-            return new Iterator<>() {
-                private int index = 0;
-                private final int firstSize = first.size();
-                private final int totalSize = firstSize + second.size();
-
-                @Override
-                public boolean hasNext() {
-                    return index < totalSize;
-                }
-
-                @Override
-                public T next() {
-                    if (index >= totalSize) {
-                        throw new NoSuchElementException();
-                    }
-                    T element = index < firstSize
-                            ? first.get(index)
-                            : second.get(index - firstSize);
-                    index++;
-                    return element;
-                }
-            };
-        }
+        return contextAttrs.with(eventAttrs);
     }
 }

@@ -269,4 +269,68 @@ class LoggerTest {
         assertEquals(Level.WARN, r.level());
         assertSame(ex, r.throwable());
     }
+
+    @Test
+    void builderBatchesAttrsIntoSingleNode() {
+        Logger log = SLog.getLogger("test", handler).with()
+                .attr("topic", "orders")
+                .attr("clientAddr", "10.0.0.1")
+                .attr("namespace", "public/default")
+                .build();
+
+        log.info("published", "msgId", "1:2:3");
+
+        assertEquals(1, records.size());
+        List<Attr> a = attrs(records.get(0));
+        assertEquals(4, a.size());
+        assertEquals("topic", a.get(0).key());
+        assertEquals("orders", a.get(0).value());
+        assertEquals("clientAddr", a.get(1).key());
+        assertEquals("namespace", a.get(2).key());
+        assertEquals("msgId", a.get(3).key());
+    }
+
+    @Test
+    void builderWithNoAttrsReturnsSameLogger() {
+        Logger base = SLog.getLogger("test", handler);
+        Logger same = base.with().build();
+        assertSame(base, same);
+    }
+
+    @Test
+    void deepChainPreservesParentFirstOrder() {
+        Logger root = SLog.getLogger("test", handler)
+                .with("a", 1);
+        Logger child = root.with("b", 2);
+        Logger grandchild = child.with("c", 3);
+
+        grandchild.info("deep");
+
+        assertEquals(1, records.size());
+        List<Attr> a = attrs(records.get(0));
+        assertEquals(3, a.size());
+        assertEquals("a", a.get(0).key());
+        assertEquals("b", a.get(1).key());
+        assertEquals("c", a.get(2).key());
+    }
+
+    @Test
+    void siblingsShareParentAttrs() {
+        Logger parent = SLog.getLogger("test", handler)
+                .with("shared", "val");
+
+        Logger child1 = parent.with("child", "1");
+        Logger child2 = parent.with("child", "2");
+
+        child1.info("from child1");
+        child2.info("from child2");
+
+        assertEquals(2, records.size());
+        List<Attr> a1 = attrs(records.get(0));
+        List<Attr> a2 = attrs(records.get(1));
+        assertEquals("shared", a1.get(0).key());
+        assertEquals("shared", a2.get(0).key());
+        assertEquals("1", a1.get(1).value());
+        assertEquals("2", a2.get(1).value());
+    }
 }

@@ -17,7 +17,6 @@ package io.github.merlimat.slog;
 
 import io.github.merlimat.slog.handler.HandlerDiscovery;
 import java.time.Clock;
-import java.util.List;
 
 /**
  * Entry point for creating structured loggers.
@@ -42,7 +41,7 @@ public final class SLog {
      * @return a new {@link Logger} instance
      */
     public static Logger getLogger(String name) {
-        return new Logger(name, HandlerDiscovery.get(), List.of(), Clock.systemUTC());
+        return new Logger(name, HandlerDiscovery.get(), AttrChain.EMPTY, Clock.systemUTC());
     }
 
     /**
@@ -57,10 +56,10 @@ public final class SLog {
 
     // Visible for testing
     static Logger getLogger(String name, Handler handler) {
-        return new Logger(name, handler, List.of(), Clock.systemUTC());
+        return new Logger(name, handler, AttrChain.EMPTY, Clock.systemUTC());
     }
 
     static Logger getLogger(String name, Handler handler, Clock clock) {
-        return new Logger(name, handler, List.of(), clock);
+        return new Logger(name, handler, AttrChain.EMPTY, clock);
     }
 }
