@@ -1,13 +1,19 @@
 plugins {
     `java-library`
+    `maven-publish`
+    signing
+    id("com.gradleup.nmcp").version("1.4.4")
+    id("com.gradleup.nmcp.aggregation").version("1.4.4")
 }
 
-group = "io.github.merlimat"
-version = "0.1.0-SNAPSHOT"
+group = "io.github.merlimat.slog"
+version = System.getenv("RELEASE_VERSION") ?: "0.0.0-SNAPSHOT"
 
 java {
     sourceCompatibility = JavaVersion.VERSION_17
     targetCompatibility = JavaVersion.VERSION_17
+    withJavadocJar()
+    withSourcesJar()
 }
 
 repositories {
@@ -30,5 +36,58 @@ tasks.test {
     useJUnitPlatform()
     testLogging {
         showStandardStreams = true
+    }
+}
+
+publishing {
+    publications {
+        create<MavenPublication>("mavenJava") {
+            from(components["java"])
+            artifactId = "slog"
+
+            pom {
+                name = "slog"
+                description = "Structured logging for Java, inspired by Go's log/slog"
+                url = "https://github.com/merlimat/slog"
+
+                licenses {
+                    license {
+                        name = "Apache License, Version 2.0"
+                        url = "https://www.apache.org/licenses/LICENSE-2.0"
+                    }
+                }
+
+                developers {
+                    developer {
+                        id = "merlimat"
+                        name = "Matteo Merli"
+                        email = "matteo.merli@gmail.com"
+                    }
+                }
+
+                scm {
+                    connection = "scm:git:git://github.com/merlimat/slog.git"
+                    developerConnection = "scm:git:ssh://github.com/merlimat/slog.git"
+                    url = "https://github.com/merlimat/slog"
+                }
+            }
+        }
+    }
+}
+
+signing {
+    val signingKey = System.getenv("GPG_PRIVATE_KEY")
+    val signingPassword = System.getenv("GPG_PASSPHRASE")
+    if (signingKey != null && signingPassword != null) {
+        useInMemoryPgpKeys(signingKey, signingPassword)
+        sign(publishing.publications["mavenJava"])
+    }
+}
+
+nmcpAggregation {
+    centralPortal {
+        username = System.getenv("CENTRAL_USERNAME")
+        password = System.getenv("CENTRAL_PASSWORD")
+        publishingType = "AUTOMATIC"
     }
 }
