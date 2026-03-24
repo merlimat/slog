@@ -29,6 +29,11 @@ enum NoopEvent implements Event {
     }
 
     @Override
+    public Event exceptionMessage(Throwable t) {
+        return this;
+    }
+
+    @Override
     public Event timed() {
         return this;
     }

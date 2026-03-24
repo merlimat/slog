@@ -602,4 +602,37 @@ class LoggerTest {
         assertEquals(1, a.size());
         assertEquals("service", a.get(0).key());
     }
+
+    @Test
+    void exceptionMessageAttachesMessageAsAttr() {
+        Logger log = Logger.get("test", handler);
+        log.error().exceptionMessage(new RuntimeException("Connection reset")).log("failed");
+
+        assertEquals(1, records.size());
+        LogRecord r = records.get(0);
+        assertNull(r.throwable());
+        List<Attr> a = attrs(r);
+        assertEquals(1, a.size());
+        assertEquals("exception", a.get(0).key());
+        assertEquals("Connection reset", a.get(0).value());
+    }
+
+    @Test
+    void exceptionMessageWithNullMessageIsNoOp() {
+        Logger log = Logger.get("test", handler);
+        log.error().exceptionMessage(new RuntimeException((String) null)).log("failed");
+
+        assertEquals(1, records.size());
+        assertTrue(attrs(records.get(0)).isEmpty());
+        assertNull(records.get(0).throwable());
+    }
+
+    @Test
+    void exceptionMessageWithNullThrowableIsNoOp() {
+        Logger log = Logger.get("test", handler);
+        log.error().exceptionMessage(null).log("failed");
+
+        assertEquals(1, records.size());
+        assertTrue(attrs(records.get(0)).isEmpty());
+    }
 }

@@ -43,12 +43,23 @@ public interface Event {
     Event attr(String key, Object value);
 
     /**
-     * Attaches an exception to this event.
+     * Attaches an exception to this event, including the full stack trace.
+     * No-op if {@code t} is {@code null}.
      *
-     * @param t the throwable to attach
+     * @param t the throwable to attach, may be {@code null}
      * @return this event, for chaining
      */
     Event exception(Throwable t);
+
+    /**
+     * Attaches only the exception's message as an {@code "exception"} attribute,
+     * without the full stack trace. If the throwable's message is {@code null},
+     * this is a no-op.
+     *
+     * @param t the throwable whose message to attach
+     * @return this event, for chaining
+     */
+    Event exceptionMessage(Throwable t);
 
     /**
      * Starts a timer for this event. The elapsed duration between this call and

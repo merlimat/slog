@@ -46,7 +46,17 @@ class EventImpl implements Event {
 
     @Override
     public Event exception(Throwable t) {
-        this.throwable = t;
+        if (t != null) {
+            this.throwable = t;
+        }
+        return this;
+    }
+
+    @Override
+    public Event exceptionMessage(Throwable t) {
+        if (t != null && t.getMessage() != null) {
+            return attr("exception", t.getMessage());
+        }
         return this;
     }
 
