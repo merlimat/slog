@@ -29,7 +29,7 @@ dependencies {
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
     testImplementation("org.apache.logging.log4j:log4j-core:2.25.3")
     testImplementation("org.apache.logging.log4j:log4j-slf4j2-impl:2.25.3")
-    testImplementation("com.fasterxml.jackson.core:jackson-databind:2.18.2")
+    testImplementation("com.fasterxml.jackson.core:jackson-databind:2.19.0")
 
     nmcpAggregation(project(":"))
 }
