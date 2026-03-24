@@ -9,6 +9,11 @@ plugins {
 group = "io.github.merlimat.slog"
 version = System.getenv("RELEASE_VERSION") ?: "0.0.0-SNAPSHOT"
 
+val slf4jVersion = "2.0.16"
+val log4j2Version = "2.25.3"
+val junitVersion = "5.11.4"
+val jacksonVersion = "2.19.0"
+
 java {
     sourceCompatibility = JavaVersion.VERSION_17
     targetCompatibility = JavaVersion.VERSION_17
@@ -21,15 +26,15 @@ repositories {
 }
 
 dependencies {
-    api("org.slf4j:slf4j-api:2.0.16")
-    compileOnly("org.apache.logging.log4j:log4j-core:2.25.3")
-    compileOnly("org.apache.logging.log4j:log4j-api:2.25.3")
+    api("org.slf4j:slf4j-api:$slf4jVersion")
+    compileOnly("org.apache.logging.log4j:log4j-core:$log4j2Version")
+    compileOnly("org.apache.logging.log4j:log4j-api:$log4j2Version")
 
-    testImplementation("org.junit.jupiter:junit-jupiter:5.11.4")
+    testImplementation("org.junit.jupiter:junit-jupiter:$junitVersion")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
-    testImplementation("org.apache.logging.log4j:log4j-core:2.25.3")
-    testImplementation("org.apache.logging.log4j:log4j-slf4j2-impl:2.25.3")
-    testImplementation("com.fasterxml.jackson.core:jackson-databind:2.19.0")
+    testImplementation("org.apache.logging.log4j:log4j-core:$log4j2Version")
+    testImplementation("org.apache.logging.log4j:log4j-slf4j2-impl:$log4j2Version")
+    testImplementation("com.fasterxml.jackson.core:jackson-databind:$jacksonVersion")
 
     nmcpAggregation(project(":"))
 }
