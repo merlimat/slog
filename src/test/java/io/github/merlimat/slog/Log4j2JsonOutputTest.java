@@ -73,7 +73,7 @@ class Log4j2JsonOutputTest {
     @Test
     void jsonOutputContainsStructuredAttributes() throws Exception {
         String json = captureJsonOutput(() -> {
-            Logger log = SLog.getLogger(LOGGER_NAME);
+            Logger log = Logger.get(LOGGER_NAME);
             log.info("Request handled", "method", "GET", "path", "/api/orders", "status", 200);
         });
 
@@ -98,7 +98,7 @@ class Log4j2JsonOutputTest {
     @Test
     void jsonOutputWithContextAndException() throws Exception {
         String json = captureJsonOutput(() -> {
-            Logger log = SLog.getLogger(LOGGER_NAME)
+            Logger log = Logger.get(LOGGER_NAME)
                     .with("topic", "persistent://public/default/orders")
                     .with("clientAddr", "10.0.0.1");
 
@@ -127,7 +127,7 @@ class Log4j2JsonOutputTest {
     @Test
     void jsonOutputWithFluentBuilder() throws Exception {
         String json = captureJsonOutput(() -> {
-            Logger log = SLog.getLogger(LOGGER_NAME)
+            Logger log = Logger.get(LOGGER_NAME)
                     .with("namespace", "public/default");
 
             log.atInfo()

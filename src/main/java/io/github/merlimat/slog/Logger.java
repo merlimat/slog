@@ -15,6 +15,7 @@
  */
 package io.github.merlimat.slog;
 
+import io.github.merlimat.slog.handler.HandlerDiscovery;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
@@ -27,9 +28,10 @@ import java.util.List;
  * is never modified. This makes it natural to derive component-scoped loggers:
  *
  * <pre>{@code
- * Logger slog = SLog.getLogger(Producer.class)
- *     .with("topic", topicName)
- *     .with("clientAddr", remoteAddr);
+ * Logger slog = Logger.get(Producer.class).with()
+ *     .attr("topic", topicName)
+ *     .attr("clientAddr", remoteAddr)
+ *     .build();
  *
  * // All subsequent logs from this logger include topic and clientAddr
  * slog.info("Message published", "msgId", id, "size", payload.length);
@@ -45,6 +47,43 @@ public class Logger {
     private final Handler handler;
     private final AttrChain contextAttrs;
     private final Clock clock;
+
+    /**
+     * Creates a new structured logger named after the given class.
+     *
+     * <p>Example:
+     * <pre>{@code
+     * Logger log = Logger.get(MyService.class).with()
+     *     .attr("topic", topic)
+     *     .attr("clientAddr", addr)
+     *     .build();
+     * }</pre>
+     *
+     * @param clazz the class whose name will be used as the logger name
+     * @return a new {@code Logger} instance
+     */
+    public static Logger get(Class<?> clazz) {
+        return get(clazz.getName());
+    }
+
+    /**
+     * Creates a new structured logger with the given name.
+     *
+     * @param name the logger name (typically a fully-qualified class name)
+     * @return a new {@code Logger} instance
+     */
+    public static Logger get(String name) {
+        return new Logger(name, HandlerDiscovery.get(), AttrChain.EMPTY, Clock.systemUTC());
+    }
+
+    // Visible for testing
+    static Logger get(String name, Handler handler) {
+        return new Logger(name, handler, AttrChain.EMPTY, Clock.systemUTC());
+    }
+
+    static Logger get(String name, Handler handler, Clock clock) {
+        return new Logger(name, handler, AttrChain.EMPTY, clock);
+    }
 
     Logger(String name, Handler handler, AttrChain contextAttrs, Clock clock) {
         this.name = name;
@@ -90,9 +129,30 @@ public class Logger {
     public static final class Builder {
         private final Logger parent;
         private final List<Attr> attrs = new ArrayList<>();
+        private AttrChain inherited;
 
         Builder(Logger parent) {
             this.parent = parent;
+        }
+
+        /**
+         * Inherits all context attributes from another logger. This is used to
+         * propagate context across component boundaries.
+         *
+         * <pre>{@code
+         * Logger log2 = Logger.get(MyClass2.class).with()
+         *     .ctx(log1)
+         *     .attr("extra", "val")
+         *     .build();
+         * // log2 carries all of log1's attrs, plus "extra"
+         * }</pre>
+         *
+         * @param other the logger whose context to inherit
+         * @return this builder, for chaining
+         */
+        public Builder ctx(Logger other) {
+            this.inherited = other.contextAttrs;
+            return this;
         }
 
         /**
@@ -114,11 +174,17 @@ public class Logger {
          * @return a new {@code Logger} with the added context attributes
          */
         public Logger build() {
-            if (attrs.isEmpty()) {
+            AttrChain chain = parent.contextAttrs;
+            if (inherited != null) {
+                chain = chain.withPrefix(inherited);
+            }
+            if (!attrs.isEmpty()) {
+                chain = chain.with(attrs);
+            }
+            if (chain == parent.contextAttrs) {
                 return parent;
             }
-            return new Logger(parent.name, parent.handler,
-                    parent.contextAttrs.with(attrs), parent.clock);
+            return new Logger(parent.name, parent.handler, chain, parent.clock);
         }
     }
 

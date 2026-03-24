@@ -50,6 +50,36 @@ final class AttrChain implements Iterable<Attr> {
         return new AttrChain(this, List.copyOf(attrs));
     }
 
+    /**
+     * Returns a new chain that has {@code other} as a prefix, followed by this chain's attrs.
+     * Used to adopt another logger's context.
+     */
+    AttrChain withPrefix(AttrChain other) {
+        if (other.isEmpty()) {
+            return this;
+        }
+        if (this.isEmpty()) {
+            return other;
+        }
+        // Walk this chain to find the root, then graft other underneath
+        // Collect this chain's nodes (child → root), then rebuild with other as the base
+        int depth = 0;
+        for (AttrChain n = this; n != EMPTY; n = n.parent) {
+            depth++;
+        }
+        AttrChain[] nodes = new AttrChain[depth];
+        int i = depth - 1;
+        for (AttrChain n = this; n != EMPTY; n = n.parent) {
+            nodes[i--] = n;
+        }
+        // Rebuild: start from other, then layer each of this chain's nodes on top
+        AttrChain result = other;
+        for (AttrChain node : nodes) {
+            result = new AttrChain(result, node.own);
+        }
+        return result;
+    }
+
     boolean isEmpty() {
         return this == EMPTY;
     }

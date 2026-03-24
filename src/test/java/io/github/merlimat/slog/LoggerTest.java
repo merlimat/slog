@@ -57,7 +57,7 @@ class LoggerTest {
 
     @Test
     void simpleInfoLog() {
-        Logger log = SLog.getLogger("test", handler);
+        Logger log = Logger.get("test", handler);
         log.info("hello");
 
         assertEquals(1, records.size());
@@ -72,7 +72,7 @@ class LoggerTest {
 
     @Test
     void infoWithKeyValuePairs() {
-        Logger log = SLog.getLogger("test", handler);
+        Logger log = Logger.get("test", handler);
         log.info("request", "method", "GET", "path", "/api");
 
         assertEquals(1, records.size());
@@ -88,7 +88,7 @@ class LoggerTest {
 
     @Test
     void contextPropagationWithWith() {
-        Logger log = SLog.getLogger("test", handler)
+        Logger log = Logger.get("test", handler)
                 .with("topic", "persistent://t")
                 .with("clientAddr", "10.0.0.1");
 
@@ -108,7 +108,7 @@ class LoggerTest {
 
     @Test
     void withCreatesNewLogger() {
-        Logger base = SLog.getLogger("test", handler);
+        Logger base = Logger.get("test", handler);
         Logger derived = base.with("key", "val");
 
         assertNotSame(base, derived);
@@ -123,7 +123,7 @@ class LoggerTest {
 
     @Test
     void disabledLevelDoesNotInvokeHandler() {
-        Logger log = SLog.getLogger("test", handler);
+        Logger log = Logger.get("test", handler);
         log.debug("should be skipped");
         log.trace("should be skipped");
 
@@ -132,7 +132,7 @@ class LoggerTest {
 
     @Test
     void errorWithException() {
-        Logger log = SLog.getLogger("test", handler);
+        Logger log = Logger.get("test", handler);
         RuntimeException ex = new RuntimeException("boom");
         log.error("failed", ex, "op", "write");
 
@@ -148,7 +148,7 @@ class LoggerTest {
 
     @Test
     void atInfoReturnsNoopWhenDisabled() {
-        Logger log = SLog.getLogger("test", handler);
+        Logger log = Logger.get("test", handler);
         Event event = log.atDebug();
 
         assertSame(NoopEvent.INSTANCE, event);
@@ -160,7 +160,7 @@ class LoggerTest {
 
     @Test
     void atInfoBuilderWorks() {
-        Logger log = SLog.getLogger("test", handler);
+        Logger log = Logger.get("test", handler);
         log.atInfo()
                 .attr("key", "val")
                 .exception(new RuntimeException("err"))
@@ -190,7 +190,7 @@ class LoggerTest {
             public Instant instant() { return clockRef[0].instant(); }
         };
 
-        Logger log = SLog.getLogger("test", handler, advancingClock);
+        Logger log = Logger.get("test", handler, advancingClock);
         Event e = log.atInfo().timed();
 
         // Advance clock by 150ms
@@ -205,7 +205,7 @@ class LoggerTest {
 
     @Test
     void isEnabledCheck() {
-        Logger log = SLog.getLogger("test", handler);
+        Logger log = Logger.get("test", handler);
         assertTrue(log.isEnabled(Level.INFO));
         assertTrue(log.isEnabled(Level.WARN));
         assertTrue(log.isEnabled(Level.ERROR));
@@ -216,7 +216,7 @@ class LoggerTest {
     @Test
     void allLevels() {
         enabledLevels = Set.of(Level.TRACE, Level.DEBUG, Level.INFO, Level.WARN, Level.ERROR);
-        Logger log = SLog.getLogger("test", handler);
+        Logger log = Logger.get("test", handler);
 
         log.trace("t");
         log.debug("d");
@@ -234,7 +234,7 @@ class LoggerTest {
 
     @Test
     void contextAttrsWithEventBuilder() {
-        Logger log = SLog.getLogger("test", handler)
+        Logger log = Logger.get("test", handler)
                 .with("ctx", "value");
 
         log.atInfo()
@@ -251,7 +251,7 @@ class LoggerTest {
 
     @Test
     void nullValueHandling() {
-        Logger log = SLog.getLogger("test", handler);
+        Logger log = Logger.get("test", handler);
         log.info("msg", "key", null);
 
         assertEquals(1, records.size());
@@ -260,7 +260,7 @@ class LoggerTest {
 
     @Test
     void warnWithException() {
-        Logger log = SLog.getLogger("test", handler);
+        Logger log = Logger.get("test", handler);
         Exception ex = new Exception("warning");
         log.warn("careful", ex);
 
@@ -272,7 +272,7 @@ class LoggerTest {
 
     @Test
     void builderBatchesAttrsIntoSingleNode() {
-        Logger log = SLog.getLogger("test", handler).with()
+        Logger log = Logger.get("test", handler).with()
                 .attr("topic", "orders")
                 .attr("clientAddr", "10.0.0.1")
                 .attr("namespace", "public/default")
@@ -292,14 +292,14 @@ class LoggerTest {
 
     @Test
     void builderWithNoAttrsReturnsSameLogger() {
-        Logger base = SLog.getLogger("test", handler);
+        Logger base = Logger.get("test", handler);
         Logger same = base.with().build();
         assertSame(base, same);
     }
 
     @Test
     void deepChainPreservesParentFirstOrder() {
-        Logger root = SLog.getLogger("test", handler)
+        Logger root = Logger.get("test", handler)
                 .with("a", 1);
         Logger child = root.with("b", 2);
         Logger grandchild = child.with("c", 3);
@@ -316,7 +316,7 @@ class LoggerTest {
 
     @Test
     void siblingsShareParentAttrs() {
-        Logger parent = SLog.getLogger("test", handler)
+        Logger parent = Logger.get("test", handler)
                 .with("shared", "val");
 
         Logger child1 = parent.with("child", "1");
@@ -332,5 +332,50 @@ class LoggerTest {
         assertEquals("shared", a2.get(0).key());
         assertEquals("1", a1.get(1).value());
         assertEquals("2", a2.get(1).value());
+    }
+
+    @Test
+    void ctxPropagatesContextAcrossLoggers() {
+        Logger log1 = Logger.get("service1", handler).with()
+                .attr("topic", "orders")
+                .attr("clientAddr", "10.0.0.1")
+                .build();
+
+        Logger log2 = Logger.get("service2", handler).with()
+                .ctx(log1)
+                .attr("msgId", "1:2:3")
+                .build();
+
+        log2.info("processed");
+
+        assertEquals(1, records.size());
+        List<Attr> a = attrs(records.get(0));
+        assertEquals(3, a.size());
+        // Inherited attrs come first
+        assertEquals("topic", a.get(0).key());
+        assertEquals("orders", a.get(0).value());
+        assertEquals("clientAddr", a.get(1).key());
+        assertEquals("10.0.0.1", a.get(1).value());
+        // Then the builder's own attrs
+        assertEquals("msgId", a.get(2).key());
+        assertEquals("1:2:3", a.get(2).value());
+        // Logger name is from the new logger, not the inherited one
+        assertEquals("service2", records.get(0).loggerName());
+    }
+
+    @Test
+    void ctxWithEmptyLoggerIsNoOp() {
+        Logger empty = Logger.get("empty", handler);
+        Logger log = Logger.get("test", handler).with()
+                .ctx(empty)
+                .attr("key", "val")
+                .build();
+
+        log.info("msg");
+
+        assertEquals(1, records.size());
+        List<Attr> a = attrs(records.get(0));
+        assertEquals(1, a.size());
+        assertEquals("key", a.get(0).key());
     }
 }

@@ -70,7 +70,7 @@ class Log4j2TextOutputTest {
         String output = captureTextOutput(
                 "%d{HH:mm:ss.SSS} %-5level [%logger{36}] %message %X%n",
                 () -> {
-                    Logger log = SLog.getLogger(LOGGER_NAME)
+                    Logger log = Logger.get(LOGGER_NAME)
                             .with("topic", "orders")
                             .with("clientAddr", "10.0.0.1");
                     log.info("Message published", "msgId", "1:2:3");
@@ -92,7 +92,7 @@ class Log4j2TextOutputTest {
         String output = captureTextOutput(
                 "%-5level %message [topic=%X{topic} client=%X{clientAddr}]%n",
                 () -> {
-                    Logger log = SLog.getLogger(LOGGER_NAME)
+                    Logger log = Logger.get(LOGGER_NAME)
                             .with("topic", "orders")
                             .with("clientAddr", "10.0.0.1");
                     log.info("Published");
@@ -113,7 +113,7 @@ class Log4j2TextOutputTest {
         String output = captureTextOutput(
                 "%-5level %message %X %ex{short}%n",
                 () -> {
-                    Logger log = SLog.getLogger(LOGGER_NAME)
+                    Logger log = Logger.get(LOGGER_NAME)
                             .with("op", "publish");
                     log.error("Failed", new RuntimeException("Connection reset"));
                 });
