@@ -22,14 +22,15 @@ import io.github.merlimat.slog.LogRecord;
 import java.util.concurrent.ConcurrentHashMap;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
-import org.apache.logging.log4j.message.StringMapMessage;
+import org.apache.logging.log4j.ThreadContext;
 
 /**
  * {@link Handler} implementation that delegates to Log4j2.
  *
- * <p>Structured attributes are emitted as a {@link StringMapMessage},
- * which integrates natively with Log4j2's JSON Template Layout for
- * first-class structured JSON output.
+ * <p>Structured attributes are placed into the Log4j2 {@link ThreadContext}
+ * for the duration of each log call. When using {@code JsonLayout} with
+ * {@code properties="true"}, each attribute appears as an individual field
+ * inside the {@code contextMap} JSON object.
  *
  * <p>This handler is selected automatically when {@code org.apache.logging.log4j.LogManager}
  * is present on the classpath.
@@ -52,21 +53,23 @@ public class Log4j2Handler implements Handler {
     @Override
     public void handle(LogRecord record) {
         Logger logger = getLogger(record.loggerName());
-        StringMapMessage message = new StringMapMessage();
-        message.with("msg", record.message());
+        try {
+            for (Attr attr : record.attrs()) {
+                ThreadContext.put(attr.key(), attr.valueAsString());
+            }
+            if (record.duration() != null) {
+                ThreadContext.put("durationMs", String.valueOf(record.duration().toMillis()));
+            }
 
-        for (Attr attr : record.attrs()) {
-            message.with(attr.key(), attr.valueAsString());
-        }
-        if (record.duration() != null) {
-            message.with("durationMs", String.valueOf(record.duration().toMillis()));
-        }
-
-        org.apache.logging.log4j.Level log4jLevel = toLog4j2Level(record.level());
-        if (record.throwable() != null) {
-            logger.log(log4jLevel, message, record.throwable());
-        } else {
-            logger.log(log4jLevel, message);
+            org.apache.logging.log4j.Level log4jLevel = toLog4j2Level(record.level());
+            String msg = record.message();
+            if (record.throwable() != null) {
+                logger.log(log4jLevel, msg, record.throwable());
+            } else {
+                logger.log(log4jLevel, msg);
+            }
+        } finally {
+            ThreadContext.clearMap();
         }
     }
 

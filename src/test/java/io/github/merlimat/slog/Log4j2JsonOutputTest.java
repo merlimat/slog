@@ -29,7 +29,8 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Integration test that exercises the real Log4j2 handler with JsonLayout,
- * capturing output and verifying the structured JSON.
+ * capturing output and verifying that structured attributes appear as
+ * individual fields in the JSON contextMap.
  */
 class Log4j2JsonOutputTest {
     private static final ObjectMapper MAPPER = new ObjectMapper();
@@ -43,6 +44,7 @@ class Log4j2JsonOutputTest {
                 .setConfiguration(config)
                 .setCompact(true)
                 .setEventEol(true)
+                .setProperties(true)
                 .build();
 
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
@@ -54,7 +56,6 @@ class Log4j2JsonOutputTest {
                 .build();
         appender.start();
 
-        // Attach directly to the target logger
         org.apache.logging.log4j.core.Logger logger =
                 (org.apache.logging.log4j.core.Logger) LogManager.getLogger(LOGGER_NAME);
         logger.addAppender(appender);
@@ -82,18 +83,16 @@ class Log4j2JsonOutputTest {
 
         assertFalse(json.isEmpty(), "Expected JSON output");
         JsonNode node = MAPPER.readTree(json);
-        // StringMapMessage formats all key-value pairs (including msg) into the message field
-        String message = node.get("message").asText();
-        assertTrue(message.contains("method="));
-        assertTrue(message.contains("GET"));
-        assertTrue(message.contains("path="));
-        assertTrue(message.contains("/api/orders"));
-        assertTrue(message.contains("status="));
-        assertTrue(message.contains("200"));
-        assertTrue(message.contains("msg="));
-        assertTrue(message.contains("Request handled"));
+        assertEquals("Request handled", node.get("message").asText());
         assertEquals("INFO", node.get("level").asText());
         assertEquals(LOGGER_NAME, node.get("loggerName").asText());
+
+        // Attrs appear as individual fields in contextMap
+        JsonNode ctx = node.get("contextMap");
+        assertNotNull(ctx, "contextMap should be present");
+        assertEquals("GET", ctx.get("method").asText());
+        assertEquals("/api/orders", ctx.get("path").asText());
+        assertEquals("200", ctx.get("status").asText());
     }
 
     @Test
@@ -113,14 +112,14 @@ class Log4j2JsonOutputTest {
 
         assertFalse(json.isEmpty(), "Expected JSON output");
         JsonNode node = MAPPER.readTree(json);
-        String message = node.get("message").asText();
-        assertTrue(message.contains("topic="));
-        assertTrue(message.contains("persistent://public/default/orders"));
-        assertTrue(message.contains("clientAddr="));
-        assertTrue(message.contains("10.0.0.1"));
-        assertTrue(message.contains("msgId="));
-        assertTrue(message.contains("1:2:3"));
+        assertEquals("Publish failed", node.get("message").asText());
         assertEquals("ERROR", node.get("level").asText());
+
+        JsonNode ctx = node.get("contextMap");
+        assertEquals("persistent://public/default/orders", ctx.get("topic").asText());
+        assertEquals("10.0.0.1", ctx.get("clientAddr").asText());
+        assertEquals("1:2:3", ctx.get("msgId").asText());
+
         assertTrue(node.has("thrown"));
         assertEquals("Connection reset", node.get("thrown").get("message").asText());
     }
@@ -144,12 +143,12 @@ class Log4j2JsonOutputTest {
 
         assertFalse(json.isEmpty(), "Expected JSON output");
         JsonNode node = MAPPER.readTree(json);
-        String message = node.get("message").asText();
-        assertTrue(message.contains("namespace="));
-        assertTrue(message.contains("public/default"));
-        assertTrue(message.contains("orderId="));
-        assertTrue(message.contains("ORD-12345"));
-        assertTrue(message.contains("items="));
-        assertTrue(message.contains("3"));
+        assertEquals("Order processed", node.get("message").asText());
+
+        JsonNode ctx = node.get("contextMap");
+        assertEquals("public/default", ctx.get("namespace").asText());
+        assertEquals("ORD-12345", ctx.get("orderId").asText());
+        assertEquals("3", ctx.get("items").asText());
+        assertEquals("59.99", ctx.get("total").asText());
     }
 }
