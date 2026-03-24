@@ -18,7 +18,7 @@ package io.github.merlimat.slog;
 /**
  * A fluent builder for constructing a structured log event.
  *
- * <p>Obtained from {@link Logger#atInfo()}, {@link Logger#atDebug()}, etc. When the
+ * <p>Obtained from {@link Logger#info()}, {@link Logger#debug()}, etc. When the
  * corresponding level is disabled, a no-op singleton is returned so that all chained
  * calls are effectively free.
  *
@@ -65,4 +65,23 @@ public interface Event {
      * @param msg the log message
      */
     void log(String msg);
+
+    /**
+     * Emits the log event with a formatted message using Java's printf-style
+     * format specifiers ({@code %s}, {@code %d}, {@code %f}, etc.).
+     * Formatting is deferred — it only happens when the level is enabled.
+     *
+     * <p><b>Note:</b> This uses {@link String#format} syntax, not SLF4J's
+     * {@code {}} placeholders.
+     *
+     * <pre>{@code
+     * log.info().attr("op", "resize")
+     *     .logf("Processed %d items in %dms", count, elapsed);
+     * }</pre>
+     *
+     * @param format the format string (as in {@link String#format})
+     * @param args   the format arguments
+     * @see java.util.Formatter
+     */
+    void logf(String format, Object... args);
 }

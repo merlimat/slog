@@ -37,4 +37,9 @@ enum NoopEvent implements Event {
     public void log(String msg) {
         // no-op
     }
+
+    @Override
+    public void logf(String format, Object... args) {
+        // no-op — formatting is skipped entirely
+    }
 }

@@ -519,4 +519,87 @@ class LoggerTest {
         assertEquals("key", a.get(1).key());
         assertEquals("from-event", a.get(1).value());
     }
+
+    @Test
+    void logfFormatsMessage() {
+        Logger log = Logger.get("test", handler);
+        log.info().attr("op", "resize").logf("Processed %d items in %dms", 42, 150);
+
+        assertEquals(1, records.size());
+        LogRecord r = records.get(0);
+        assertEquals("Processed 42 items in 150ms", r.message());
+        List<Attr> a = attrs(r);
+        assertEquals(1, a.size());
+        assertEquals("op", a.get(0).key());
+    }
+
+    @Test
+    void logfWithStringFormatting() {
+        Logger log = Logger.get("test", handler);
+        log.info().logf("Hello %s, you have %d messages", "Alice", 5);
+
+        assertEquals(1, records.size());
+        assertEquals("Hello Alice, you have 5 messages", records.get(0).message());
+    }
+
+    @Test
+    void logfOnDisabledLevelSkipsFormatting() {
+        Logger log = Logger.get("test", handler);
+        // DEBUG is disabled in this test setup
+        log.debug().logf("Should not format %d", 42);
+
+        assertEquals(0, records.size());
+    }
+
+    @Test
+    void infofFormatsMessage() {
+        Logger log = Logger.get("test", handler);
+        log.infof("User %s has %d items", "Bob", 7);
+
+        assertEquals(1, records.size());
+        assertEquals("User Bob has 7 items", records.get(0).message());
+        assertEquals(Level.INFO, records.get(0).level());
+    }
+
+    @Test
+    void errorfFormatsMessage() {
+        Logger log = Logger.get("test", handler);
+        log.errorf("Failed after %d retries: %s", 3, "timeout");
+
+        assertEquals(1, records.size());
+        assertEquals("Failed after 3 retries: timeout", records.get(0).message());
+        assertEquals(Level.ERROR, records.get(0).level());
+    }
+
+    @Test
+    void warnfFormatsMessage() {
+        Logger log = Logger.get("test", handler);
+        log.warnf("Slow query: %.1fms", 123.4);
+
+        assertEquals(1, records.size());
+        assertEquals("Slow query: 123.4ms", records.get(0).message());
+        assertEquals(Level.WARN, records.get(0).level());
+    }
+
+    @Test
+    void debugfSkippedWhenDisabled() {
+        Logger log = Logger.get("test", handler);
+        log.debugf("Should not format %d", 99);
+
+        assertEquals(0, records.size());
+    }
+
+    @Test
+    void infofIncludesContextAttrs() {
+        Logger log = Logger.get("test", handler).with()
+                .attr("service", "orders")
+                .build();
+        log.infof("Processed %d items", 42);
+
+        assertEquals(1, records.size());
+        assertEquals("Processed 42 items", records.get(0).message());
+        List<Attr> a = attrs(records.get(0));
+        assertEquals(1, a.size());
+        assertEquals("service", a.get(0).key());
+    }
 }

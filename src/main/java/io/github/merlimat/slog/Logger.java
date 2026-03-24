@@ -186,17 +186,21 @@ public class Logger {
     }
 
     // --- Logging methods ---
-    // Each level has two overloads:
-    //   info(msg)  — logs a plain message, no allocations beyond the record
-    //   info()     — returns a fluent Event builder for attrs, exceptions, timing
+    // Each level has three variants:
+    //   info(msg)             — logs a plain message
+    //   infof(format, args)   — logs a printf-formatted message
+    //   info()                — returns a fluent Event builder
 
-    /**
-     * Logs a message at TRACE level. No-op if TRACE is disabled.
-     * For structured attributes use {@link #trace()}.
-     */
+    /** Logs a message at TRACE level. No-op if TRACE is disabled. */
     public void trace(String msg) {
         if (!handler.isEnabled(name, Level.TRACE)) return;
         handler.handle(buildRecord(Level.TRACE, msg));
+    }
+
+    /** Logs a printf-formatted message at TRACE level. No-op if TRACE is disabled. */
+    public void tracef(String format, Object... args) {
+        if (!handler.isEnabled(name, Level.TRACE)) return;
+        handler.handle(buildRecord(Level.TRACE, String.format(format, args)));
     }
 
     /** Returns a fluent TRACE-level event builder. No-op if TRACE is disabled. */
@@ -205,13 +209,16 @@ public class Logger {
         return new EventImpl(this, Level.TRACE, clock);
     }
 
-    /**
-     * Logs a message at DEBUG level. No-op if DEBUG is disabled.
-     * For structured attributes use {@link #debug()}.
-     */
+    /** Logs a message at DEBUG level. No-op if DEBUG is disabled. */
     public void debug(String msg) {
         if (!handler.isEnabled(name, Level.DEBUG)) return;
         handler.handle(buildRecord(Level.DEBUG, msg));
+    }
+
+    /** Logs a printf-formatted message at DEBUG level. No-op if DEBUG is disabled. */
+    public void debugf(String format, Object... args) {
+        if (!handler.isEnabled(name, Level.DEBUG)) return;
+        handler.handle(buildRecord(Level.DEBUG, String.format(format, args)));
     }
 
     /** Returns a fluent DEBUG-level event builder. No-op if DEBUG is disabled. */
@@ -220,13 +227,16 @@ public class Logger {
         return new EventImpl(this, Level.DEBUG, clock);
     }
 
-    /**
-     * Logs a message at INFO level. No-op if INFO is disabled.
-     * For structured attributes use {@link #info()}.
-     */
+    /** Logs a message at INFO level. No-op if INFO is disabled. */
     public void info(String msg) {
         if (!handler.isEnabled(name, Level.INFO)) return;
         handler.handle(buildRecord(Level.INFO, msg));
+    }
+
+    /** Logs a printf-formatted message at INFO level. No-op if INFO is disabled. */
+    public void infof(String format, Object... args) {
+        if (!handler.isEnabled(name, Level.INFO)) return;
+        handler.handle(buildRecord(Level.INFO, String.format(format, args)));
     }
 
     /** Returns a fluent INFO-level event builder. No-op if INFO is disabled. */
@@ -235,13 +245,16 @@ public class Logger {
         return new EventImpl(this, Level.INFO, clock);
     }
 
-    /**
-     * Logs a message at WARN level. No-op if WARN is disabled.
-     * For structured attributes use {@link #warn()}.
-     */
+    /** Logs a message at WARN level. No-op if WARN is disabled. */
     public void warn(String msg) {
         if (!handler.isEnabled(name, Level.WARN)) return;
         handler.handle(buildRecord(Level.WARN, msg));
+    }
+
+    /** Logs a printf-formatted message at WARN level. No-op if WARN is disabled. */
+    public void warnf(String format, Object... args) {
+        if (!handler.isEnabled(name, Level.WARN)) return;
+        handler.handle(buildRecord(Level.WARN, String.format(format, args)));
     }
 
     /** Returns a fluent WARN-level event builder. No-op if WARN is disabled. */
@@ -250,13 +263,16 @@ public class Logger {
         return new EventImpl(this, Level.WARN, clock);
     }
 
-    /**
-     * Logs a message at ERROR level. No-op if ERROR is disabled.
-     * For structured attributes use {@link #error()}.
-     */
+    /** Logs a message at ERROR level. No-op if ERROR is disabled. */
     public void error(String msg) {
         if (!handler.isEnabled(name, Level.ERROR)) return;
         handler.handle(buildRecord(Level.ERROR, msg));
+    }
+
+    /** Logs a printf-formatted message at ERROR level. No-op if ERROR is disabled. */
+    public void errorf(String format, Object... args) {
+        if (!handler.isEnabled(name, Level.ERROR)) return;
+        handler.handle(buildRecord(Level.ERROR, String.format(format, args)));
     }
 
     /** Returns a fluent ERROR-level event builder. No-op if ERROR is disabled. */

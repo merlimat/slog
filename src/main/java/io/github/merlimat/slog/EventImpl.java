@@ -58,6 +58,15 @@ class EventImpl implements Event {
 
     @Override
     public void log(String msg) {
+        emit(msg);
+    }
+
+    @Override
+    public void logf(String format, Object... args) {
+        emit(String.format(format, args));
+    }
+
+    private void emit(String msg) {
         Duration duration = startTime != null
                 ? Duration.between(startTime, clock.instant())
                 : null;
