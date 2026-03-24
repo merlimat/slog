@@ -51,6 +51,7 @@ public class Slf4jHandler implements Handler {
     @Override
     public void handle(LogRecord record) {
         Logger logger = getLogger(record.loggerName());
+        var saved = MDC.getCopyOfContextMap();
         try {
             for (Attr attr : record.attrs()) {
                 MDC.put(attr.key(), attr.valueAsString());
@@ -69,7 +70,11 @@ public class Slf4jHandler implements Handler {
                 case ERROR -> { if (t != null) logger.error(msg, t); else logger.error(msg); }
             }
         } finally {
-            MDC.clear();
+            if (saved != null) {
+                MDC.setContextMap(saved);
+            } else {
+                MDC.clear();
+            }
         }
     }
 

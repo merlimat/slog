@@ -53,6 +53,7 @@ public class Log4j2Handler implements Handler {
     @Override
     public void handle(LogRecord record) {
         Logger logger = getLogger(record.loggerName());
+        var saved = ThreadContext.getImmutableContext();
         try {
             for (Attr attr : record.attrs()) {
                 ThreadContext.put(attr.key(), attr.valueAsString());
@@ -70,6 +71,9 @@ public class Log4j2Handler implements Handler {
             }
         } finally {
             ThreadContext.clearMap();
+            if (!saved.isEmpty()) {
+                ThreadContext.putAll(saved);
+            }
         }
     }
 
