@@ -19,6 +19,7 @@ import io.github.merlimat.slog.handler.HandlerDiscovery;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 
 /**
  * A structured logger that emits log records with attached key-value attributes.
@@ -186,10 +187,11 @@ public class Logger {
     }
 
     // --- Logging methods ---
-    // Each level has three variants:
+    // Each level has four variants:
     //   info(msg)             — logs a plain message
     //   infof(format, args)   — logs a printf-formatted message
     //   info()                — returns a fluent Event builder
+    //   info(Consumer<Event>) — deferred: lambda is only called if level is enabled
 
     /**
      * Logs a message at TRACE level. No-op if TRACE is disabled.
@@ -217,6 +219,22 @@ public class Logger {
     public Event trace() {
         if (!handler.isEnabled(name, Level.TRACE)) return NoopEvent.INSTANCE;
         return new EventImpl(this, Level.TRACE, clock);
+    }
+
+    /**
+     * Passes an event builder to the given consumer at TRACE level.
+     * If TRACE is disabled, the consumer is never invoked — avoiding any
+     * computation of expensive messages or attributes.
+     *
+     * <pre>{@code
+     * log.trace(e -> e.attr("payload", serialize(data)).log("detail"));
+     * }</pre>
+     *
+     * @param consumer the consumer that builds and logs the event
+     */
+    public void trace(Consumer<Event> consumer) {
+        if (!handler.isEnabled(name, Level.TRACE)) return;
+        consumer.accept(new EventImpl(this, Level.TRACE, clock));
     }
 
     /**
@@ -248,6 +266,22 @@ public class Logger {
     }
 
     /**
+     * Passes an event builder to the given consumer at DEBUG level.
+     * If DEBUG is disabled, the consumer is never invoked — avoiding any
+     * computation of expensive messages or attributes.
+     *
+     * <pre>{@code
+     * log.debug(e -> e.attr("key", expensiveValue()).log(expensiveMsg()));
+     * }</pre>
+     *
+     * @param consumer the consumer that builds and logs the event
+     */
+    public void debug(Consumer<Event> consumer) {
+        if (!handler.isEnabled(name, Level.DEBUG)) return;
+        consumer.accept(new EventImpl(this, Level.DEBUG, clock));
+    }
+
+    /**
      * Logs a message at INFO level. No-op if INFO is disabled.
      * @param msg the log message
      */
@@ -273,6 +307,22 @@ public class Logger {
     public Event info() {
         if (!handler.isEnabled(name, Level.INFO)) return NoopEvent.INSTANCE;
         return new EventImpl(this, Level.INFO, clock);
+    }
+
+    /**
+     * Passes an event builder to the given consumer at INFO level.
+     * If INFO is disabled, the consumer is never invoked — avoiding any
+     * computation of expensive messages or attributes.
+     *
+     * <pre>{@code
+     * log.info(e -> e.attr("stats", computeStats()).log("report"));
+     * }</pre>
+     *
+     * @param consumer the consumer that builds and logs the event
+     */
+    public void info(Consumer<Event> consumer) {
+        if (!handler.isEnabled(name, Level.INFO)) return;
+        consumer.accept(new EventImpl(this, Level.INFO, clock));
     }
 
     /**
@@ -304,6 +354,22 @@ public class Logger {
     }
 
     /**
+     * Passes an event builder to the given consumer at WARN level.
+     * If WARN is disabled, the consumer is never invoked — avoiding any
+     * computation of expensive messages or attributes.
+     *
+     * <pre>{@code
+     * log.warn(e -> e.attr("metric", computeMetric()).log("threshold exceeded"));
+     * }</pre>
+     *
+     * @param consumer the consumer that builds and logs the event
+     */
+    public void warn(Consumer<Event> consumer) {
+        if (!handler.isEnabled(name, Level.WARN)) return;
+        consumer.accept(new EventImpl(this, Level.WARN, clock));
+    }
+
+    /**
      * Logs a message at ERROR level. No-op if ERROR is disabled.
      * @param msg the log message
      */
@@ -329,6 +395,22 @@ public class Logger {
     public Event error() {
         if (!handler.isEnabled(name, Level.ERROR)) return NoopEvent.INSTANCE;
         return new EventImpl(this, Level.ERROR, clock);
+    }
+
+    /**
+     * Passes an event builder to the given consumer at ERROR level.
+     * If ERROR is disabled, the consumer is never invoked — avoiding any
+     * computation of expensive messages or attributes.
+     *
+     * <pre>{@code
+     * log.error(e -> e.exception(ex).attr("ctx", gatherContext()).log("failure"));
+     * }</pre>
+     *
+     * @param consumer the consumer that builds and logs the event
+     */
+    public void error(Consumer<Event> consumer) {
+        if (!handler.isEnabled(name, Level.ERROR)) return;
+        consumer.accept(new EventImpl(this, Level.ERROR, clock));
     }
 
     /**
@@ -364,7 +446,9 @@ public class Logger {
 
     // --- Private helpers ---
 
+    private static final String FQCN = Logger.class.getName();
+
     private LogRecord buildRecord(Level level, String msg) {
-        return new LogRecord(name, level, msg, contextAttrs, null, clock.instant(), null);
+        return new LogRecord(name, level, msg, contextAttrs, null, clock.instant(), null, FQCN);
     }
 }

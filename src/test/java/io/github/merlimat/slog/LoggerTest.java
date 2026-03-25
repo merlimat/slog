@@ -24,6 +24,7 @@ import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.stream.StreamSupport;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -502,6 +503,83 @@ class LoggerTest {
         assertEquals("from-log1", a.get(0).value());
         assertEquals("id", a.get(1).key());
         assertEquals("from-log2", a.get(1).value());
+    }
+
+    @Test
+    void consumerVariantLogsWhenEnabled() {
+        Logger log = Logger.get("test", handler);
+        log.info(e -> e.attr("key", "val").log("lazy msg"));
+
+        assertEquals(1, records.size());
+        LogRecord r = records.get(0);
+        assertEquals(Level.INFO, r.level());
+        assertEquals("lazy msg", r.message());
+        List<Attr> a = attrs(r);
+        assertEquals(1, a.size());
+        assertEquals("key", a.get(0).key());
+        assertEquals("val", a.get(0).value());
+    }
+
+    @Test
+    void consumerVariantSkipsLambdaWhenDisabled() {
+        Logger log = Logger.get("test", handler);
+        AtomicBoolean invoked = new AtomicBoolean(false);
+
+        // DEBUG is disabled in this test setup
+        log.debug(e -> {
+            invoked.set(true);
+            e.log("should not be called");
+        });
+
+        assertFalse(invoked.get());
+        assertEquals(0, records.size());
+    }
+
+    @Test
+    void consumerVariantIncludesContextAttrs() {
+        Logger log = Logger.get("test", handler).with()
+                .attr("ctx", "value")
+                .build();
+
+        log.info(e -> e.attr("event", "data").log("lazy"));
+
+        assertEquals(1, records.size());
+        List<Attr> a = attrs(records.get(0));
+        assertEquals(2, a.size());
+        assertEquals("ctx", a.get(0).key());
+        assertEquals("event", a.get(1).key());
+    }
+
+    @Test
+    void consumerVariantAllLevels() {
+        enabledLevels = Set.of(Level.TRACE, Level.DEBUG, Level.INFO, Level.WARN, Level.ERROR);
+        Logger log = Logger.get("test", handler);
+
+        log.trace(e -> e.log("t"));
+        log.debug(e -> e.log("d"));
+        log.info(e -> e.log("i"));
+        log.warn(e -> e.log("w"));
+        log.error(e -> e.log("e"));
+
+        assertEquals(5, records.size());
+        assertEquals(Level.TRACE, records.get(0).level());
+        assertEquals(Level.DEBUG, records.get(1).level());
+        assertEquals(Level.INFO, records.get(2).level());
+        assertEquals(Level.WARN, records.get(3).level());
+        assertEquals(Level.ERROR, records.get(4).level());
+    }
+
+    @Test
+    void consumerVariantWithException() {
+        Logger log = Logger.get("test", handler);
+        RuntimeException ex = new RuntimeException("boom");
+
+        log.error(e -> e.attr("op", "write").exception(ex).log("failed"));
+
+        assertEquals(1, records.size());
+        LogRecord r = records.get(0);
+        assertEquals("failed", r.message());
+        assertSame(ex, r.throwable());
     }
 
     @Test

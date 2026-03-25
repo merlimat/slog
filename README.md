@@ -9,6 +9,7 @@ A lightweight structured logging library for Java, inspired by Go's [log/slog](h
 - **Immutable context propagation** — derive loggers with `logger.with()` to attach attributes that are automatically included in every subsequent log call; parent attrs are shared, never copied
 - **Cross-component context** — propagate context across component boundaries with `builder.ctx(otherLogger)`
 - **Fluent event builder** — `log.info().attr("k", "v").log("msg")` for structured events; returns a no-op singleton when the level is disabled
+- **Deferred logging** — `log.debug(e -> e.attr("k", v()).log(msg()))` wraps everything in a lambda that is only invoked when the level is enabled — ideal for expensive computations
 - **Printf formatting** — `log.infof("Processed %d items", count)` and `log.info().logf(...)` with deferred formatting
 - **Timed events** — automatically records elapsed duration
 - **Backend auto-discovery** — delegates to Log4j2 (via ThreadContext) if available, falls back to SLF4J (via MDC); no hard runtime dependencies
@@ -46,6 +47,13 @@ log.error()
 log.warn()
     .exceptionMessage(cause)    // just the message, no stack trace
     .log("Retrying operation");
+
+// Deferred logging — lambda is only called if the level is enabled
+log.debug(e -> e.attr("payload", serialize(data)).log("Request detail"));
+log.debug(e -> e
+    .attr("key", expensiveValue())
+    .attr("dump", generateDump())
+    .log(expensiveMessage()));
 
 // Timed events
 Event e = log.info().timed();
