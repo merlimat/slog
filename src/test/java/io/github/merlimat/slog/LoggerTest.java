@@ -206,16 +206,6 @@ class LoggerTest {
     }
 
     @Test
-    void isEnabledCheck() {
-        Logger log = Logger.get("test", handler);
-        assertTrue(log.isEnabled(Level.INFO));
-        assertTrue(log.isEnabled(Level.WARN));
-        assertTrue(log.isEnabled(Level.ERROR));
-        assertFalse(log.isEnabled(Level.DEBUG));
-        assertFalse(log.isEnabled(Level.TRACE));
-    }
-
-    @Test
     void allLevels() {
         enabledLevels = Set.of(Level.TRACE, Level.DEBUG, Level.INFO, Level.WARN, Level.ERROR);
         Logger log = Logger.get("test", handler);

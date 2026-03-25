@@ -198,7 +198,7 @@ public class Logger {
      * @param msg the log message
      */
     public void trace(String msg) {
-        if (!handler.isEnabled(name, Level.TRACE)) return;
+        if (!isEnabled(Level.TRACE)) return;
         handler.handle(buildRecord(Level.TRACE, msg));
     }
 
@@ -208,7 +208,7 @@ public class Logger {
      * @param args   the format arguments
      */
     public void tracef(String format, Object... args) {
-        if (!handler.isEnabled(name, Level.TRACE)) return;
+        if (!isEnabled(Level.TRACE)) return;
         handler.handle(buildRecord(Level.TRACE, String.format(format, args)));
     }
 
@@ -217,7 +217,7 @@ public class Logger {
      * @return an {@link Event} builder, or a no-op singleton
      */
     public Event trace() {
-        if (!handler.isEnabled(name, Level.TRACE)) return NoopEvent.INSTANCE;
+        if (!isEnabled(Level.TRACE)) return NoopEvent.INSTANCE;
         return new EventImpl(this, Level.TRACE, clock);
     }
 
@@ -233,7 +233,7 @@ public class Logger {
      * @param consumer the consumer that builds and logs the event
      */
     public void trace(Consumer<Event> consumer) {
-        if (!handler.isEnabled(name, Level.TRACE)) return;
+        if (!isEnabled(Level.TRACE)) return;
         consumer.accept(new EventImpl(this, Level.TRACE, clock));
     }
 
@@ -242,7 +242,7 @@ public class Logger {
      * @param msg the log message
      */
     public void debug(String msg) {
-        if (!handler.isEnabled(name, Level.DEBUG)) return;
+        if (!isEnabled(Level.DEBUG)) return;
         handler.handle(buildRecord(Level.DEBUG, msg));
     }
 
@@ -252,7 +252,7 @@ public class Logger {
      * @param args   the format arguments
      */
     public void debugf(String format, Object... args) {
-        if (!handler.isEnabled(name, Level.DEBUG)) return;
+        if (!isEnabled(Level.DEBUG)) return;
         handler.handle(buildRecord(Level.DEBUG, String.format(format, args)));
     }
 
@@ -261,7 +261,7 @@ public class Logger {
      * @return an {@link Event} builder, or a no-op singleton
      */
     public Event debug() {
-        if (!handler.isEnabled(name, Level.DEBUG)) return NoopEvent.INSTANCE;
+        if (!isEnabled(Level.DEBUG)) return NoopEvent.INSTANCE;
         return new EventImpl(this, Level.DEBUG, clock);
     }
 
@@ -277,7 +277,7 @@ public class Logger {
      * @param consumer the consumer that builds and logs the event
      */
     public void debug(Consumer<Event> consumer) {
-        if (!handler.isEnabled(name, Level.DEBUG)) return;
+        if (!isEnabled(Level.DEBUG)) return;
         consumer.accept(new EventImpl(this, Level.DEBUG, clock));
     }
 
@@ -286,7 +286,7 @@ public class Logger {
      * @param msg the log message
      */
     public void info(String msg) {
-        if (!handler.isEnabled(name, Level.INFO)) return;
+        if (!isEnabled(Level.INFO)) return;
         handler.handle(buildRecord(Level.INFO, msg));
     }
 
@@ -296,7 +296,7 @@ public class Logger {
      * @param args   the format arguments
      */
     public void infof(String format, Object... args) {
-        if (!handler.isEnabled(name, Level.INFO)) return;
+        if (!isEnabled(Level.INFO)) return;
         handler.handle(buildRecord(Level.INFO, String.format(format, args)));
     }
 
@@ -305,7 +305,7 @@ public class Logger {
      * @return an {@link Event} builder, or a no-op singleton
      */
     public Event info() {
-        if (!handler.isEnabled(name, Level.INFO)) return NoopEvent.INSTANCE;
+        if (!isEnabled(Level.INFO)) return NoopEvent.INSTANCE;
         return new EventImpl(this, Level.INFO, clock);
     }
 
@@ -321,7 +321,7 @@ public class Logger {
      * @param consumer the consumer that builds and logs the event
      */
     public void info(Consumer<Event> consumer) {
-        if (!handler.isEnabled(name, Level.INFO)) return;
+        if (!isEnabled(Level.INFO)) return;
         consumer.accept(new EventImpl(this, Level.INFO, clock));
     }
 
@@ -330,7 +330,7 @@ public class Logger {
      * @param msg the log message
      */
     public void warn(String msg) {
-        if (!handler.isEnabled(name, Level.WARN)) return;
+        if (!isEnabled(Level.WARN)) return;
         handler.handle(buildRecord(Level.WARN, msg));
     }
 
@@ -340,7 +340,7 @@ public class Logger {
      * @param args   the format arguments
      */
     public void warnf(String format, Object... args) {
-        if (!handler.isEnabled(name, Level.WARN)) return;
+        if (!isEnabled(Level.WARN)) return;
         handler.handle(buildRecord(Level.WARN, String.format(format, args)));
     }
 
@@ -349,7 +349,7 @@ public class Logger {
      * @return an {@link Event} builder, or a no-op singleton
      */
     public Event warn() {
-        if (!handler.isEnabled(name, Level.WARN)) return NoopEvent.INSTANCE;
+        if (!isEnabled(Level.WARN)) return NoopEvent.INSTANCE;
         return new EventImpl(this, Level.WARN, clock);
     }
 
@@ -365,7 +365,7 @@ public class Logger {
      * @param consumer the consumer that builds and logs the event
      */
     public void warn(Consumer<Event> consumer) {
-        if (!handler.isEnabled(name, Level.WARN)) return;
+        if (!isEnabled(Level.WARN)) return;
         consumer.accept(new EventImpl(this, Level.WARN, clock));
     }
 
@@ -374,7 +374,7 @@ public class Logger {
      * @param msg the log message
      */
     public void error(String msg) {
-        if (!handler.isEnabled(name, Level.ERROR)) return;
+        if (!isEnabled(Level.ERROR)) return;
         handler.handle(buildRecord(Level.ERROR, msg));
     }
 
@@ -384,7 +384,7 @@ public class Logger {
      * @param args   the format arguments
      */
     public void errorf(String format, Object... args) {
-        if (!handler.isEnabled(name, Level.ERROR)) return;
+        if (!isEnabled(Level.ERROR)) return;
         handler.handle(buildRecord(Level.ERROR, String.format(format, args)));
     }
 
@@ -393,7 +393,7 @@ public class Logger {
      * @return an {@link Event} builder, or a no-op singleton
      */
     public Event error() {
-        if (!handler.isEnabled(name, Level.ERROR)) return NoopEvent.INSTANCE;
+        if (!isEnabled(Level.ERROR)) return NoopEvent.INSTANCE;
         return new EventImpl(this, Level.ERROR, clock);
     }
 
@@ -409,17 +409,11 @@ public class Logger {
      * @param consumer the consumer that builds and logs the event
      */
     public void error(Consumer<Event> consumer) {
-        if (!handler.isEnabled(name, Level.ERROR)) return;
+        if (!isEnabled(Level.ERROR)) return;
         consumer.accept(new EventImpl(this, Level.ERROR, clock));
     }
 
-    /**
-     * Checks whether the given level is enabled for this logger.
-     *
-     * @param level the level to check
-     * @return {@code true} if a log at this level would be emitted
-     */
-    public boolean isEnabled(Level level) {
+    private boolean isEnabled(Level level) {
         return handler.isEnabled(name, level);
     }
 
