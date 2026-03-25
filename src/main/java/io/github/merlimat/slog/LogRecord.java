@@ -34,6 +34,8 @@ import java.time.Instant;
  * @param timestamp  the instant the event was recorded
  * @param duration   elapsed time if the event was {@linkplain Event#timed() timed},
  *                   otherwise {@code null}
+ * @param callerFqcn fully-qualified class name of the last slog frame, used by
+ *                   handlers to resolve the correct caller location
  */
 public record LogRecord(
         String loggerName,
@@ -42,6 +44,7 @@ public record LogRecord(
         Iterable<Attr> attrs,
         Throwable throwable,
         Instant timestamp,
-        Duration duration
+        Duration duration,
+        String callerFqcn
 ) {
 }

@@ -21,8 +21,8 @@ import io.github.merlimat.slog.Level;
 import io.github.merlimat.slog.LogRecord;
 import java.util.concurrent.ConcurrentHashMap;
 import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.ThreadContext;
+import org.apache.logging.log4j.spi.ExtendedLogger;
 
 /**
  * {@link Handler} implementation that delegates to Log4j2.
@@ -39,11 +39,11 @@ public class Log4j2Handler implements Handler {
     /** Creates a new Log4j2 handler. */
     public Log4j2Handler() {}
 
-    private final ConcurrentHashMap<String, Logger> loggers = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, ExtendedLogger> loggers = new ConcurrentHashMap<>();
 
     @Override
     public boolean isEnabled(String loggerName, Level level) {
-        Logger logger = getLogger(loggerName);
+        ExtendedLogger logger = getLogger(loggerName);
         return switch (level) {
             case TRACE -> logger.isTraceEnabled();
             case DEBUG -> logger.isDebugEnabled();
@@ -55,7 +55,7 @@ public class Log4j2Handler implements Handler {
 
     @Override
     public void handle(LogRecord record) {
-        Logger logger = getLogger(record.loggerName());
+        ExtendedLogger logger = getLogger(record.loggerName());
         var saved = ThreadContext.getImmutableContext();
         try {
             for (Attr attr : record.attrs()) {
@@ -66,12 +66,9 @@ public class Log4j2Handler implements Handler {
             }
 
             org.apache.logging.log4j.Level log4jLevel = toLog4j2Level(record.level());
-            String msg = record.message();
-            if (record.throwable() != null) {
-                logger.log(log4jLevel, msg, record.throwable());
-            } else {
-                logger.log(log4jLevel, msg);
-            }
+            org.apache.logging.log4j.message.Message message =
+                    logger.getMessageFactory().newMessage(record.message());
+            logger.logMessage(record.callerFqcn(), log4jLevel, null, message, record.throwable());
         } finally {
             ThreadContext.clearMap();
             if (!saved.isEmpty()) {
@@ -80,8 +77,8 @@ public class Log4j2Handler implements Handler {
         }
     }
 
-    private Logger getLogger(String name) {
-        return loggers.computeIfAbsent(name, LogManager::getLogger);
+    private ExtendedLogger getLogger(String name) {
+        return loggers.computeIfAbsent(name, n -> (ExtendedLogger) LogManager.getLogger(n));
     }
 
     private static org.apache.logging.log4j.Level toLog4j2Level(Level level) {

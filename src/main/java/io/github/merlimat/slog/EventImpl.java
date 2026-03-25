@@ -22,6 +22,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 class EventImpl implements Event {
+    private static final String FQCN = EventImpl.class.getName();
+
     private final Logger logger;
     private final Level level;
     private final Clock clock;
@@ -89,7 +91,8 @@ class EventImpl implements Event {
                 merged,
                 throwable,
                 clock.instant(),
-                duration
+                duration,
+                FQCN
         );
         logger.handler().handle(record);
     }
