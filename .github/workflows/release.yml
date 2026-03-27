@@ -41,7 +41,6 @@ jobs:
   javadoc:
     runs-on: ubuntu-latest
     name: Publish Javadoc to GitHub Pages
-    needs: release
     permissions:
       pages: write
       id-token: write
