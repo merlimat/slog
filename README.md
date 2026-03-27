@@ -19,7 +19,7 @@ A lightweight structured logging library for Java, inspired by Go's [log/slog](h
 - Java 17+
 - At least one of the following logging backends on the classpath:
   - **Log4j2** (preferred when available)
-  - **SLF4J 2.x**
+  - **SLF4J 1.x or 2.x**
 
 ## Quick Start
 
