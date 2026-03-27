@@ -139,6 +139,28 @@ When only SLF4J is available, attributes are placed into the MDC for the duratio
 of each log call, making them available via pattern layouts or JSON encoders
 (e.g. logstash-logback-encoder).
 
+## Lombok Integration
+
+If you use [Lombok](https://projectlombok.org/), you can use `@CustomLog` to generate the logger field
+automatically. Add this to your `lombok.config`:
+
+```properties
+lombok.log.custom.declaration = io.github.merlimat.slog.Logger io.github.merlimat.slog.Logger.get(TYPE)
+```
+
+Then annotate your classes:
+
+```java
+@CustomLog
+public class MyService {
+    public void process() {
+        log.info("hello");
+    }
+}
+```
+
+Lombok will generate `private static final Logger log = Logger.get(MyService.class);`.
+
 ## Building
 
 ```bash
