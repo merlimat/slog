@@ -35,7 +35,7 @@ import java.util.function.Consumer;
  *     .build();
  *
  * // All subsequent logs from this logger include topic and clientAddr
- * slog.info("Message published", "msgId", id, "size", payload.length);
+ * slog.info().attr("msgId", id).attr("size", payload.length).log("Message published");
  * }</pre>
  *
  * <p><b>Zero overhead when disabled:</b> All logging methods check

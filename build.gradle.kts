@@ -40,6 +40,10 @@ dependencies {
     nmcpAggregation(project(":"))
 }
 
+tasks.javadoc {
+    exclude("io/github/merlimat/slog/handler/**")
+}
+
 tasks.test {
     useJUnitPlatform()
     testLogging {
