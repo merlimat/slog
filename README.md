@@ -14,6 +14,10 @@ A lightweight structured logging library for Java, inspired by Go's [log/slog](h
 - **Timed events** — automatically records elapsed duration
 - **Backend auto-discovery** — delegates to Log4j2 (via ThreadContext) if available, falls back to SLF4J (via MDC); no hard runtime dependencies
 
+## Documentation
+
+- [Javadoc](https://merlimat.github.io/slog/javadoc/)
+
 ## Requirements
 
 - Java 17+
