@@ -703,4 +703,109 @@ class LoggerTest {
         assertEquals(1, records.size());
         assertTrue(attrs(records.get(0)).isEmpty());
     }
+
+    @Test
+    void attrLongOverload() {
+        Logger log = Logger.get("test", handler);
+        log.info().attr("ledgerId", 99L).attr("entryId", 42L).log("entry");
+
+        assertEquals(1, records.size());
+        List<Attr> a = attrs(records.get(0));
+        assertEquals(2, a.size());
+        assertEquals("ledgerId", a.get(0).key());
+        assertEquals(99L, a.get(0).value());
+        assertEquals("entryId", a.get(1).key());
+        assertEquals(42L, a.get(1).value());
+    }
+
+    @Test
+    void attrIntOverload() {
+        Logger log = Logger.get("test", handler);
+        log.info().attr("count", 7).attr("offset", 128).log("msg");
+
+        assertEquals(1, records.size());
+        List<Attr> a = attrs(records.get(0));
+        assertEquals(2, a.size());
+        assertEquals("count", a.get(0).key());
+        assertEquals(7, a.get(0).value());
+        assertEquals("offset", a.get(1).key());
+        assertEquals(128, a.get(1).value());
+    }
+
+    @Test
+    void attrDoubleOverload() {
+        Logger log = Logger.get("test", handler);
+        log.info().attr("latency", 3.14).log("msg");
+
+        assertEquals(1, records.size());
+        List<Attr> a = attrs(records.get(0));
+        assertEquals(1, a.size());
+        assertEquals("latency", a.get(0).key());
+        assertEquals(3.14, a.get(0).value());
+    }
+
+    @Test
+    void attrFloatOverload() {
+        Logger log = Logger.get("test", handler);
+        log.info().attr("ratio", 0.5f).log("msg");
+
+        assertEquals(1, records.size());
+        List<Attr> a = attrs(records.get(0));
+        assertEquals(1, a.size());
+        assertEquals("ratio", a.get(0).key());
+        assertEquals(0.5f, a.get(0).value());
+    }
+
+    @Test
+    void attrBooleanOverload() {
+        Logger log = Logger.get("test", handler);
+        log.info().attr("success", true).attr("retry", false).log("msg");
+
+        assertEquals(1, records.size());
+        List<Attr> a = attrs(records.get(0));
+        assertEquals(2, a.size());
+        assertEquals("success", a.get(0).key());
+        assertEquals(true, a.get(0).value());
+        assertEquals("retry", a.get(1).key());
+        assertEquals(false, a.get(1).value());
+    }
+
+    @Test
+    void attrPrimitiveMixedWithObject() {
+        Logger log = Logger.get("test", handler);
+        log.info()
+                .attr("name", "test")
+                .attr("ledgerId", 99L)
+                .attr("count", 7)
+                .attr("latency", 3.14)
+                .attr("success", true)
+                .log("mixed");
+
+        assertEquals(1, records.size());
+        List<Attr> a = attrs(records.get(0));
+        assertEquals(5, a.size());
+        assertEquals("test", a.get(0).value());
+        assertEquals(99L, a.get(1).value());
+        assertEquals(7, a.get(2).value());
+        assertEquals(3.14, a.get(3).value());
+        assertEquals(true, a.get(4).value());
+    }
+
+    @Test
+    void attrPrimitiveOverloadsOnDisabledLevelAreNoop() {
+        Logger log = Logger.get("test", handler);
+        // DEBUG is disabled in this test setup
+        Event event = log.debug();
+        assertSame(NoopEvent.INSTANCE, event);
+
+        event.attr("a", 1L)
+                .attr("b", 2)
+                .attr("c", 3.0)
+                .attr("d", 4.0f)
+                .attr("e", true)
+                .attr("f", "string")
+                .log("noop");
+
+        assertEquals(0, records.size());
+    }
 }

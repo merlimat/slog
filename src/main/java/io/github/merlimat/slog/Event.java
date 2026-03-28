@@ -43,6 +43,51 @@ public interface Event {
     Event attr(String key, Object value);
 
     /**
+     * Adds a {@code long} attribute, avoiding autoboxing when the level is disabled.
+     *
+     * @param key   the attribute name
+     * @param value the attribute value
+     * @return this event, for chaining
+     */
+    Event attr(String key, long value);
+
+    /**
+     * Adds an {@code int} attribute, avoiding autoboxing when the level is disabled.
+     *
+     * @param key   the attribute name
+     * @param value the attribute value
+     * @return this event, for chaining
+     */
+    Event attr(String key, int value);
+
+    /**
+     * Adds a {@code double} attribute, avoiding autoboxing when the level is disabled.
+     *
+     * @param key   the attribute name
+     * @param value the attribute value
+     * @return this event, for chaining
+     */
+    Event attr(String key, double value);
+
+    /**
+     * Adds a {@code float} attribute, avoiding autoboxing when the level is disabled.
+     *
+     * @param key   the attribute name
+     * @param value the attribute value
+     * @return this event, for chaining
+     */
+    Event attr(String key, float value);
+
+    /**
+     * Adds a {@code boolean} attribute, avoiding autoboxing when the level is disabled.
+     *
+     * @param key   the attribute name
+     * @param value the attribute value
+     * @return this event, for chaining
+     */
+    Event attr(String key, boolean value);
+
+    /**
      * Attaches an exception to this event, including the full stack trace.
      * No-op if {@code t} is {@code null}.
      *

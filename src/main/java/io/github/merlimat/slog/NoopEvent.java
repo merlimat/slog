@@ -24,6 +24,31 @@ enum NoopEvent implements Event {
     }
 
     @Override
+    public Event attr(String key, long value) {
+        return this;
+    }
+
+    @Override
+    public Event attr(String key, int value) {
+        return this;
+    }
+
+    @Override
+    public Event attr(String key, double value) {
+        return this;
+    }
+
+    @Override
+    public Event attr(String key, float value) {
+        return this;
+    }
+
+    @Override
+    public Event attr(String key, boolean value) {
+        return this;
+    }
+
+    @Override
     public Event exception(Throwable t) {
         return this;
     }

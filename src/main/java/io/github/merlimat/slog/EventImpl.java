@@ -47,6 +47,31 @@ class EventImpl implements Event {
     }
 
     @Override
+    public Event attr(String key, long value) {
+        return attr(key, (Object) value);
+    }
+
+    @Override
+    public Event attr(String key, int value) {
+        return attr(key, (Object) value);
+    }
+
+    @Override
+    public Event attr(String key, double value) {
+        return attr(key, (Object) value);
+    }
+
+    @Override
+    public Event attr(String key, float value) {
+        return attr(key, (Object) value);
+    }
+
+    @Override
+    public Event attr(String key, boolean value) {
+        return attr(key, (Object) value);
+    }
+
+    @Override
     public Event exception(Throwable t) {
         if (t != null) {
             this.throwable = t;
