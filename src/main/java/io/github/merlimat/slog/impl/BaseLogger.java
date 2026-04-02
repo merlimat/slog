@@ -208,7 +208,7 @@ abstract class BaseLogger implements Logger {
     }
 
     private LogRecord buildRecord(Level level, String msg) {
-        return new LogRecord(name, level, msg, contextAttrs, null, clock.instant(), null, FQCN);
+        return new LogRecord(name, level, msg, contextAttrs, null, null, FQCN);
     }
 
     // --- Test-only Logger ---

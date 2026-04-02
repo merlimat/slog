@@ -127,7 +127,6 @@ final class EventImpl implements Event {
                 msg,
                 merged,
                 throwable,
-                clock.instant(),
                 duration,
                 FQCN
         );

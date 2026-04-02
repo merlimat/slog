@@ -16,7 +16,6 @@
 package io.github.merlimat.slog.impl;
 
 import java.time.Duration;
-import java.time.Instant;
 
 /**
  * An immutable snapshot of a structured log event, ready for emission by the logging backend.
@@ -31,7 +30,6 @@ import java.time.Instant;
  * @param attrs      structured key-value attributes (context + per-event); may be a
  *                   zero-copy composite view backed by the original lists
  * @param throwable  an optional attached exception, may be {@code null}
- * @param timestamp  the instant the event was recorded
  * @param duration   elapsed time if the event was {@linkplain io.github.merlimat.slog.Event#timed() timed},
  *                   otherwise {@code null}
  * @param callerFqcn fully-qualified class name of the last slog frame, used by
@@ -43,7 +41,6 @@ record LogRecord(
         String message,
         Iterable<Attr> attrs,
         Throwable throwable,
-        Instant timestamp,
         Duration duration,
         String callerFqcn
 ) {
