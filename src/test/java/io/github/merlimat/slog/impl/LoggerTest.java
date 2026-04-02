@@ -50,7 +50,7 @@ class LoggerTest {
 
     @Test
     void simpleInfoLog() {
-        Logger log = LoggerDiscovery.forTest("test", enabledLevels, records);
+        Logger log = TestLogger.create("test", enabledLevels, records);
         log.info("hello");
 
         assertEquals(1, records.size());
@@ -65,7 +65,7 @@ class LoggerTest {
 
     @Test
     void infoWithKeyValuePairs() {
-        Logger log = LoggerDiscovery.forTest("test", enabledLevels, records);
+        Logger log = TestLogger.create("test", enabledLevels, records);
         log.info().attr("method", "GET").attr("path", "/api").log("request");
 
         assertEquals(1, records.size());
@@ -81,7 +81,7 @@ class LoggerTest {
 
     @Test
     void contextPropagationWithWith() {
-        Logger log = LoggerDiscovery.forTest("test", enabledLevels, records).with()
+        Logger log = TestLogger.create("test", enabledLevels, records).with()
                 .attr("topic", "persistent://t")
                 .attr("clientAddr", "10.0.0.1")
                 .build();
@@ -102,7 +102,7 @@ class LoggerTest {
 
     @Test
     void withCreatesNewLogger() {
-        Logger base = LoggerDiscovery.forTest("test", enabledLevels, records);
+        Logger base = TestLogger.create("test", enabledLevels, records);
         Logger derived = base.with().attr("key", "val").build();
 
         assertNotSame(base, derived);
@@ -117,7 +117,7 @@ class LoggerTest {
 
     @Test
     void disabledLevelDoesNotInvokeHandler() {
-        Logger log = LoggerDiscovery.forTest("test", enabledLevels, records);
+        Logger log = TestLogger.create("test", enabledLevels, records);
         log.debug("should be skipped");
         log.trace("should be skipped");
 
@@ -126,7 +126,7 @@ class LoggerTest {
 
     @Test
     void errorWithException() {
-        Logger log = LoggerDiscovery.forTest("test", enabledLevels, records);
+        Logger log = TestLogger.create("test", enabledLevels, records);
         RuntimeException ex = new RuntimeException("boom");
         log.error().attr("op", "write").exception(ex).log("failed");
 
@@ -142,7 +142,7 @@ class LoggerTest {
 
     @Test
     void atInfoReturnsNoopWhenDisabled() {
-        Logger log = LoggerDiscovery.forTest("test", enabledLevels, records);
+        Logger log = TestLogger.create("test", enabledLevels, records);
         Event event = log.debug();
 
         // Should not throw or record anything
@@ -152,7 +152,7 @@ class LoggerTest {
 
     @Test
     void atInfoBuilderWorks() {
-        Logger log = LoggerDiscovery.forTest("test", enabledLevels, records);
+        Logger log = TestLogger.create("test", enabledLevels, records);
         log.info()
                 .attr("key", "val")
                 .exception(new RuntimeException("err"))
@@ -182,7 +182,7 @@ class LoggerTest {
             public Instant instant() { return clockRef[0].instant(); }
         };
 
-        Logger log = LoggerDiscovery.forTest("test", enabledLevels, records, advancingClock);
+        Logger log = TestLogger.create("test", enabledLevels, records, advancingClock);
         Event e = log.info().timed();
 
         // Advance clock by 150ms
@@ -198,7 +198,7 @@ class LoggerTest {
     @Test
     void allLevels() {
         enabledLevels = Set.of(Level.TRACE, Level.DEBUG, Level.INFO, Level.WARN, Level.ERROR);
-        Logger log = LoggerDiscovery.forTest("test", enabledLevels, records);
+        Logger log = TestLogger.create("test", enabledLevels, records);
 
         log.trace("t");
         log.debug("d");
@@ -216,7 +216,7 @@ class LoggerTest {
 
     @Test
     void contextAttrsWithEventBuilder() {
-        Logger log = LoggerDiscovery.forTest("test", enabledLevels, records)
+        Logger log = TestLogger.create("test", enabledLevels, records)
                 .with().attr("ctx", "value").build();
 
         log.info()
@@ -233,7 +233,7 @@ class LoggerTest {
 
     @Test
     void nullValueHandling() {
-        Logger log = LoggerDiscovery.forTest("test", enabledLevels, records);
+        Logger log = TestLogger.create("test", enabledLevels, records);
         log.info().attr("key", null).log("msg");
 
         assertEquals(1, records.size());
@@ -242,7 +242,7 @@ class LoggerTest {
 
     @Test
     void warnWithException() {
-        Logger log = LoggerDiscovery.forTest("test", enabledLevels, records);
+        Logger log = TestLogger.create("test", enabledLevels, records);
         Exception ex = new Exception("warning");
         log.warn().exception(ex).log("careful");
 
@@ -254,7 +254,7 @@ class LoggerTest {
 
     @Test
     void builderBatchesAttrsIntoSingleNode() {
-        Logger log = LoggerDiscovery.forTest("test", enabledLevels, records).with()
+        Logger log = TestLogger.create("test", enabledLevels, records).with()
                 .attr("topic", "orders")
                 .attr("clientAddr", "10.0.0.1")
                 .attr("namespace", "public/default")
@@ -274,14 +274,14 @@ class LoggerTest {
 
     @Test
     void builderWithNoAttrsReturnsSameLogger() {
-        Logger base = LoggerDiscovery.forTest("test", enabledLevels, records);
+        Logger base = TestLogger.create("test", enabledLevels, records);
         Logger same = base.with().build();
         assertSame(base, same);
     }
 
     @Test
     void deepChainPreservesParentFirstOrder() {
-        Logger root = LoggerDiscovery.forTest("test", enabledLevels, records).with().attr("a", 1).build();
+        Logger root = TestLogger.create("test", enabledLevels, records).with().attr("a", 1).build();
         Logger child = root.with().attr("b", 2).build();
         Logger grandchild = child.with().attr("c", 3).build();
 
@@ -297,7 +297,7 @@ class LoggerTest {
 
     @Test
     void siblingsShareParentAttrs() {
-        Logger parent = LoggerDiscovery.forTest("test", enabledLevels, records).with().attr("shared", "val").build();
+        Logger parent = TestLogger.create("test", enabledLevels, records).with().attr("shared", "val").build();
 
         Logger child1 = parent.with().attr("child", "1").build();
         Logger child2 = parent.with().attr("child", "2").build();
@@ -316,12 +316,12 @@ class LoggerTest {
 
     @Test
     void ctxPropagatesContextAcrossLoggers() {
-        Logger log1 = LoggerDiscovery.forTest("service1", enabledLevels, records).with()
+        Logger log1 = TestLogger.create("service1", enabledLevels, records).with()
                 .attr("topic", "orders")
                 .attr("clientAddr", "10.0.0.1")
                 .build();
 
-        Logger log2 = LoggerDiscovery.forTest("service2", enabledLevels, records).with()
+        Logger log2 = TestLogger.create("service2", enabledLevels, records).with()
                 .ctx(log1)
                 .attr("msgId", "1:2:3")
                 .build();
@@ -345,8 +345,8 @@ class LoggerTest {
 
     @Test
     void ctxWithEmptyLoggerIsNoOp() {
-        Logger empty = LoggerDiscovery.forTest("empty", enabledLevels, records);
-        Logger log = LoggerDiscovery.forTest("test", enabledLevels, records).with()
+        Logger empty = TestLogger.create("empty", enabledLevels, records);
+        Logger log = TestLogger.create("test", enabledLevels, records).with()
                 .ctx(empty)
                 .attr("key", "val")
                 .build();
@@ -361,17 +361,17 @@ class LoggerTest {
 
     @Test
     void multipleCtxCallsAppendInOrder() {
-        Logger producerLog = LoggerDiscovery.forTest("producer", enabledLevels, records).with()
+        Logger producerLog = TestLogger.create("producer", enabledLevels, records).with()
                 .attr("topic", "orders")
                 .attr("clientAddr", "10.0.0.1")
                 .build();
 
-        Logger requestLog = LoggerDiscovery.forTest("request", enabledLevels, records).with()
+        Logger requestLog = TestLogger.create("request", enabledLevels, records).with()
                 .attr("requestId", "req-42")
                 .attr("traceId", "abc-123")
                 .build();
 
-        Logger log = LoggerDiscovery.forTest("test", enabledLevels, records).with()
+        Logger log = TestLogger.create("test", enabledLevels, records).with()
                 .ctx(producerLog)
                 .ctx(requestLog)
                 .attr("extra", "val")
@@ -394,11 +394,11 @@ class LoggerTest {
 
     @Test
     void multipleCtxWithEmptyInBetween() {
-        Logger log1 = LoggerDiscovery.forTest("s1", enabledLevels, records).with().attr("a", 1).build();
-        Logger empty = LoggerDiscovery.forTest("empty", enabledLevels, records);
-        Logger log2 = LoggerDiscovery.forTest("s2", enabledLevels, records).with().attr("b", 2).build();
+        Logger log1 = TestLogger.create("s1", enabledLevels, records).with().attr("a", 1).build();
+        Logger empty = TestLogger.create("empty", enabledLevels, records);
+        Logger log2 = TestLogger.create("s2", enabledLevels, records).with().attr("b", 2).build();
 
-        Logger log = LoggerDiscovery.forTest("test", enabledLevels, records).with()
+        Logger log = TestLogger.create("test", enabledLevels, records).with()
                 .ctx(log1)
                 .ctx(empty)
                 .ctx(log2)
@@ -416,7 +416,7 @@ class LoggerTest {
     void duplicateKeysAcrossLevelsArePreserved() {
         // Duplicate keys at different levels are all kept — last-writer-wins
         // is left to the handler/backend, not the logger.
-        Logger parent = LoggerDiscovery.forTest("test", enabledLevels, records).with()
+        Logger parent = TestLogger.create("test", enabledLevels, records).with()
                 .attr("env", "staging")
                 .build();
 
@@ -440,11 +440,11 @@ class LoggerTest {
 
     @Test
     void duplicateKeysAcrossCtxAndBuilder() {
-        Logger log1 = LoggerDiscovery.forTest("s1", enabledLevels, records).with()
+        Logger log1 = TestLogger.create("s1", enabledLevels, records).with()
                 .attr("region", "us-east")
                 .build();
 
-        Logger log = LoggerDiscovery.forTest("test", enabledLevels, records).with()
+        Logger log = TestLogger.create("test", enabledLevels, records).with()
                 .ctx(log1)
                 .attr("region", "eu-west")
                 .build();
@@ -463,14 +463,14 @@ class LoggerTest {
 
     @Test
     void duplicateKeysAcrossMultipleCtx() {
-        Logger log1 = LoggerDiscovery.forTest("s1", enabledLevels, records).with()
+        Logger log1 = TestLogger.create("s1", enabledLevels, records).with()
                 .attr("id", "from-log1")
                 .build();
-        Logger log2 = LoggerDiscovery.forTest("s2", enabledLevels, records).with()
+        Logger log2 = TestLogger.create("s2", enabledLevels, records).with()
                 .attr("id", "from-log2")
                 .build();
 
-        Logger log = LoggerDiscovery.forTest("test", enabledLevels, records).with()
+        Logger log = TestLogger.create("test", enabledLevels, records).with()
                 .ctx(log1)
                 .ctx(log2)
                 .build();
@@ -487,7 +487,7 @@ class LoggerTest {
 
     @Test
     void consumerVariantLogsWhenEnabled() {
-        Logger log = LoggerDiscovery.forTest("test", enabledLevels, records);
+        Logger log = TestLogger.create("test", enabledLevels, records);
         log.info(e -> e.attr("key", "val").log("lazy msg"));
 
         assertEquals(1, records.size());
@@ -502,7 +502,7 @@ class LoggerTest {
 
     @Test
     void consumerVariantSkipsLambdaWhenDisabled() {
-        Logger log = LoggerDiscovery.forTest("test", enabledLevels, records);
+        Logger log = TestLogger.create("test", enabledLevels, records);
         AtomicBoolean invoked = new AtomicBoolean(false);
 
         // DEBUG is disabled in this test setup
@@ -517,7 +517,7 @@ class LoggerTest {
 
     @Test
     void consumerVariantIncludesContextAttrs() {
-        Logger log = LoggerDiscovery.forTest("test", enabledLevels, records).with()
+        Logger log = TestLogger.create("test", enabledLevels, records).with()
                 .attr("ctx", "value")
                 .build();
 
@@ -533,7 +533,7 @@ class LoggerTest {
     @Test
     void consumerVariantAllLevels() {
         enabledLevels = Set.of(Level.TRACE, Level.DEBUG, Level.INFO, Level.WARN, Level.ERROR);
-        Logger log = LoggerDiscovery.forTest("test", enabledLevels, records);
+        Logger log = TestLogger.create("test", enabledLevels, records);
 
         log.trace(e -> e.log("t"));
         log.debug(e -> e.log("d"));
@@ -551,7 +551,7 @@ class LoggerTest {
 
     @Test
     void consumerVariantWithException() {
-        Logger log = LoggerDiscovery.forTest("test", enabledLevels, records);
+        Logger log = TestLogger.create("test", enabledLevels, records);
         RuntimeException ex = new RuntimeException("boom");
 
         log.error(e -> e.attr("op", "write").exception(ex).log("failed"));
@@ -564,7 +564,7 @@ class LoggerTest {
 
     @Test
     void duplicateKeysInEventAttrs() {
-        Logger log = LoggerDiscovery.forTest("test", enabledLevels, records).with()
+        Logger log = TestLogger.create("test", enabledLevels, records).with()
                 .attr("key", "from-context")
                 .build();
 
@@ -580,7 +580,7 @@ class LoggerTest {
 
     @Test
     void logfFormatsMessage() {
-        Logger log = LoggerDiscovery.forTest("test", enabledLevels, records);
+        Logger log = TestLogger.create("test", enabledLevels, records);
         log.info().attr("op", "resize").logf("Processed %d items in %dms", 42, 150);
 
         assertEquals(1, records.size());
@@ -593,7 +593,7 @@ class LoggerTest {
 
     @Test
     void logfWithStringFormatting() {
-        Logger log = LoggerDiscovery.forTest("test", enabledLevels, records);
+        Logger log = TestLogger.create("test", enabledLevels, records);
         log.info().logf("Hello %s, you have %d messages", "Alice", 5);
 
         assertEquals(1, records.size());
@@ -602,7 +602,7 @@ class LoggerTest {
 
     @Test
     void logfOnDisabledLevelSkipsFormatting() {
-        Logger log = LoggerDiscovery.forTest("test", enabledLevels, records);
+        Logger log = TestLogger.create("test", enabledLevels, records);
         // DEBUG is disabled in this test setup
         log.debug().logf("Should not format %d", 42);
 
@@ -611,7 +611,7 @@ class LoggerTest {
 
     @Test
     void infofFormatsMessage() {
-        Logger log = LoggerDiscovery.forTest("test", enabledLevels, records);
+        Logger log = TestLogger.create("test", enabledLevels, records);
         log.infof("User %s has %d items", "Bob", 7);
 
         assertEquals(1, records.size());
@@ -621,7 +621,7 @@ class LoggerTest {
 
     @Test
     void errorfFormatsMessage() {
-        Logger log = LoggerDiscovery.forTest("test", enabledLevels, records);
+        Logger log = TestLogger.create("test", enabledLevels, records);
         log.errorf("Failed after %d retries: %s", 3, "timeout");
 
         assertEquals(1, records.size());
@@ -631,7 +631,7 @@ class LoggerTest {
 
     @Test
     void warnfFormatsMessage() {
-        Logger log = LoggerDiscovery.forTest("test", enabledLevels, records);
+        Logger log = TestLogger.create("test", enabledLevels, records);
         log.warnf("Slow query: %.1fms", 123.4);
 
         assertEquals(1, records.size());
@@ -641,7 +641,7 @@ class LoggerTest {
 
     @Test
     void debugfSkippedWhenDisabled() {
-        Logger log = LoggerDiscovery.forTest("test", enabledLevels, records);
+        Logger log = TestLogger.create("test", enabledLevels, records);
         log.debugf("Should not format %d", 99);
 
         assertEquals(0, records.size());
@@ -649,7 +649,7 @@ class LoggerTest {
 
     @Test
     void infofIncludesContextAttrs() {
-        Logger log = LoggerDiscovery.forTest("test", enabledLevels, records).with()
+        Logger log = TestLogger.create("test", enabledLevels, records).with()
                 .attr("service", "orders")
                 .build();
         log.infof("Processed %d items", 42);
@@ -663,7 +663,7 @@ class LoggerTest {
 
     @Test
     void exceptionMessageAttachesMessageAsAttr() {
-        Logger log = LoggerDiscovery.forTest("test", enabledLevels, records);
+        Logger log = TestLogger.create("test", enabledLevels, records);
         log.error().exceptionMessage(new RuntimeException("Connection reset")).log("failed");
 
         assertEquals(1, records.size());
@@ -677,7 +677,7 @@ class LoggerTest {
 
     @Test
     void exceptionMessageWithNullMessageIsNoOp() {
-        Logger log = LoggerDiscovery.forTest("test", enabledLevels, records);
+        Logger log = TestLogger.create("test", enabledLevels, records);
         log.error().exceptionMessage(new RuntimeException((String) null)).log("failed");
 
         assertEquals(1, records.size());
@@ -687,7 +687,7 @@ class LoggerTest {
 
     @Test
     void exceptionMessageWithNullThrowableIsNoOp() {
-        Logger log = LoggerDiscovery.forTest("test", enabledLevels, records);
+        Logger log = TestLogger.create("test", enabledLevels, records);
         log.error().exceptionMessage(null).log("failed");
 
         assertEquals(1, records.size());
@@ -696,7 +696,7 @@ class LoggerTest {
 
     @Test
     void attrLongOverload() {
-        Logger log = LoggerDiscovery.forTest("test", enabledLevels, records);
+        Logger log = TestLogger.create("test", enabledLevels, records);
         log.info().attr("ledgerId", 99L).attr("entryId", 42L).log("entry");
 
         assertEquals(1, records.size());
@@ -710,7 +710,7 @@ class LoggerTest {
 
     @Test
     void attrIntOverload() {
-        Logger log = LoggerDiscovery.forTest("test", enabledLevels, records);
+        Logger log = TestLogger.create("test", enabledLevels, records);
         log.info().attr("count", 7).attr("offset", 128).log("msg");
 
         assertEquals(1, records.size());
@@ -724,7 +724,7 @@ class LoggerTest {
 
     @Test
     void attrDoubleOverload() {
-        Logger log = LoggerDiscovery.forTest("test", enabledLevels, records);
+        Logger log = TestLogger.create("test", enabledLevels, records);
         log.info().attr("latency", 3.14).log("msg");
 
         assertEquals(1, records.size());
@@ -736,7 +736,7 @@ class LoggerTest {
 
     @Test
     void attrFloatOverload() {
-        Logger log = LoggerDiscovery.forTest("test", enabledLevels, records);
+        Logger log = TestLogger.create("test", enabledLevels, records);
         log.info().attr("ratio", 0.5f).log("msg");
 
         assertEquals(1, records.size());
@@ -748,7 +748,7 @@ class LoggerTest {
 
     @Test
     void attrBooleanOverload() {
-        Logger log = LoggerDiscovery.forTest("test", enabledLevels, records);
+        Logger log = TestLogger.create("test", enabledLevels, records);
         log.info().attr("success", true).attr("retry", false).log("msg");
 
         assertEquals(1, records.size());
@@ -762,7 +762,7 @@ class LoggerTest {
 
     @Test
     void attrPrimitiveMixedWithObject() {
-        Logger log = LoggerDiscovery.forTest("test", enabledLevels, records);
+        Logger log = TestLogger.create("test", enabledLevels, records);
         log.info()
                 .attr("name", "test")
                 .attr("ledgerId", 99L)
@@ -783,7 +783,7 @@ class LoggerTest {
 
     @Test
     void attrPrimitiveOverloadsOnDisabledLevelAreNoop() {
-        Logger log = LoggerDiscovery.forTest("test", enabledLevels, records);
+        Logger log = TestLogger.create("test", enabledLevels, records);
         // DEBUG is disabled in this test setup
         Event event = log.debug();
 
@@ -800,7 +800,7 @@ class LoggerTest {
 
     @Test
     void supplierAttrResolvedAtEmitTime() {
-        Logger log = LoggerDiscovery.forTest("test", enabledLevels, records);
+        Logger log = TestLogger.create("test", enabledLevels, records);
         AtomicInteger counter = new AtomicInteger(0);
         Supplier<String> supplier = () -> "value-" + counter.incrementAndGet();
 
@@ -815,7 +815,7 @@ class LoggerTest {
 
     @Test
     void supplierAttrNotInvokedWhenDisabled() {
-        Logger log = LoggerDiscovery.forTest("test", enabledLevels, records);
+        Logger log = TestLogger.create("test", enabledLevels, records);
         AtomicBoolean invoked = new AtomicBoolean(false);
         Supplier<String> supplier = () -> {
             invoked.set(true);
@@ -831,7 +831,7 @@ class LoggerTest {
 
     @Test
     void supplierMessageResolvedAtEmitTime() {
-        Logger log = LoggerDiscovery.forTest("test", enabledLevels, records);
+        Logger log = TestLogger.create("test", enabledLevels, records);
         AtomicInteger counter = new AtomicInteger(0);
 
         log.info().attr("op", "test").log(() -> "msg-" + counter.incrementAndGet());
@@ -842,7 +842,7 @@ class LoggerTest {
 
     @Test
     void supplierMessageNotInvokedWhenDisabled() {
-        Logger log = LoggerDiscovery.forTest("test", enabledLevels, records);
+        Logger log = TestLogger.create("test", enabledLevels, records);
         AtomicBoolean invoked = new AtomicBoolean(false);
 
         log.debug().log(() -> {
@@ -859,7 +859,7 @@ class LoggerTest {
         AtomicInteger counter = new AtomicInteger(0);
         Supplier<String> supplier = () -> "state-" + counter.incrementAndGet();
 
-        Logger log = LoggerDiscovery.forTest("test", enabledLevels, records).with()
+        Logger log = TestLogger.create("test", enabledLevels, records).with()
                 .attr("dynamic", supplier)
                 .build();
 
@@ -877,7 +877,7 @@ class LoggerTest {
         AtomicInteger counter = new AtomicInteger(0);
         Supplier<String> supplier = () -> "conn-" + counter.incrementAndGet();
 
-        Logger log = LoggerDiscovery.forTest("test", enabledLevels, records).with()
+        Logger log = TestLogger.create("test", enabledLevels, records).with()
                 .attr("connState", supplier)
                 .build();
 
@@ -894,7 +894,7 @@ class LoggerTest {
 
     @Test
     void supplierAttrReturningNonString() {
-        Logger log = LoggerDiscovery.forTest("test", enabledLevels, records);
+        Logger log = TestLogger.create("test", enabledLevels, records);
         AtomicInteger counter = new AtomicInteger(41);
 
         log.info().attr("count", (Supplier<?>) counter::incrementAndGet).log("msg");

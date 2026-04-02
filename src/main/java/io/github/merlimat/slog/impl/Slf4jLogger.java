@@ -18,6 +18,7 @@ package io.github.merlimat.slog.impl;
 import io.github.merlimat.slog.Logger;
 
 import java.time.Clock;
+import java.time.Duration;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 
@@ -54,18 +55,18 @@ final class Slf4jLogger extends BaseLogger {
     protected boolean isErrorEnabled() { return slf4j.isErrorEnabled(); }
 
     @Override
-    protected void emit(LogRecord record) {
-        if (record.hasContext()) {
-            emitWithMdc(record);
+    protected void emit(String loggerName, Level level, String message,
+                        Iterable<Attr> attrs, Throwable throwable,
+                        Duration duration, String callerFqcn) {
+        if (hasContext(attrs, duration)) {
+            emitWithMdc(level, message, attrs, throwable, duration);
         } else {
-            emitPlain(record);
+            emitPlain(level, message, throwable);
         }
     }
 
-    private void emitPlain(LogRecord record) {
-        String msg = record.message();
-        Throwable t = record.throwable();
-        switch (record.level()) {
+    private void emitPlain(Level level, String msg, Throwable t) {
+        switch (level) {
             case TRACE -> { if (t != null) slf4j.trace(msg, t); else slf4j.trace(msg); }
             case DEBUG -> { if (t != null) slf4j.debug(msg, t); else slf4j.debug(msg); }
             case INFO ->  { if (t != null) slf4j.info(msg, t);  else slf4j.info(msg);  }
@@ -74,16 +75,17 @@ final class Slf4jLogger extends BaseLogger {
         }
     }
 
-    private void emitWithMdc(LogRecord record) {
+    private void emitWithMdc(Level level, String msg, Iterable<Attr> attrs,
+                             Throwable throwable, Duration duration) {
         var saved = MDC.getCopyOfContextMap();
         try {
-            for (Attr attr : record.attrs()) {
+            for (Attr attr : attrs) {
                 MDC.put(attr.key(), attr.valueAsString());
             }
-            if (record.duration() != null) {
-                MDC.put("durationMs", String.valueOf(record.duration().toMillis()));
+            if (duration != null) {
+                MDC.put("durationMs", String.valueOf(duration.toMillis()));
             }
-            emitPlain(record);
+            emitPlain(level, msg, throwable);
         } finally {
             if (saved != null) {
                 MDC.setContextMap(saved);

@@ -18,8 +18,8 @@ package io.github.merlimat.slog.impl;
 import io.github.merlimat.slog.Event;
 import io.github.merlimat.slog.Logger;
 import java.time.Clock;
+import java.time.Duration;
 import java.util.List;
-import java.util.Set;
 import java.util.function.Consumer;
 
 /**
@@ -38,16 +38,6 @@ abstract class BaseLogger implements Logger {
         this.name = name;
         this.contextAttrs = contextAttrs;
         this.clock = clock;
-    }
-
-    // --- Factory for tests ---
-
-    static Logger forTest(String name, Set<Level> enabledLevels, List<LogRecord> sink) {
-        return new TestLogger(name, enabledLevels, sink, AttrChain.EMPTY, Clock.systemUTC());
-    }
-
-    static Logger forTest(String name, Set<Level> enabledLevels, List<LogRecord> sink, Clock clock) {
-        return new TestLogger(name, enabledLevels, sink, AttrChain.EMPTY, clock);
     }
 
     // --- Accessors ---
@@ -69,22 +59,28 @@ abstract class BaseLogger implements Logger {
     protected abstract boolean isWarnEnabled();
     protected abstract boolean isErrorEnabled();
 
-    protected abstract void emit(LogRecord record);
+    protected abstract void emit(String loggerName, Level level, String message,
+                                   Iterable<Attr> attrs, Throwable throwable,
+                                   Duration duration, String callerFqcn);
 
     abstract Logger derive(AttrChain contextAttrs);
+
+    static boolean hasContext(Iterable<Attr> attrs, Duration duration) {
+        return (attrs != null && attrs != AttrChain.EMPTY) || duration != null;
+    }
 
     // --- Logging methods ---
 
     @Override
     public void trace(String msg) {
         if (!isTraceEnabled()) return;
-        emit(buildRecord(Level.TRACE, msg));
+        emit(name, Level.TRACE, msg, contextAttrs, null, null, FQCN);
     }
 
     @Override
     public void tracef(String format, Object... args) {
         if (!isTraceEnabled()) return;
-        emit(buildRecord(Level.TRACE, String.format(format, args)));
+        emit(name, Level.TRACE, String.format(format, args), contextAttrs, null, null, FQCN);
     }
 
     @Override
@@ -102,13 +98,13 @@ abstract class BaseLogger implements Logger {
     @Override
     public void debug(String msg) {
         if (!isDebugEnabled()) return;
-        emit(buildRecord(Level.DEBUG, msg));
+        emit(name, Level.DEBUG, msg, contextAttrs, null, null, FQCN);
     }
 
     @Override
     public void debugf(String format, Object... args) {
         if (!isDebugEnabled()) return;
-        emit(buildRecord(Level.DEBUG, String.format(format, args)));
+        emit(name, Level.DEBUG, String.format(format, args), contextAttrs, null, null, FQCN);
     }
 
     @Override
@@ -126,13 +122,13 @@ abstract class BaseLogger implements Logger {
     @Override
     public void info(String msg) {
         if (!isInfoEnabled()) return;
-        emit(buildRecord(Level.INFO, msg));
+        emit(name, Level.INFO, msg, contextAttrs, null, null, FQCN);
     }
 
     @Override
     public void infof(String format, Object... args) {
         if (!isInfoEnabled()) return;
-        emit(buildRecord(Level.INFO, String.format(format, args)));
+        emit(name, Level.INFO, String.format(format, args), contextAttrs, null, null, FQCN);
     }
 
     @Override
@@ -150,13 +146,13 @@ abstract class BaseLogger implements Logger {
     @Override
     public void warn(String msg) {
         if (!isWarnEnabled()) return;
-        emit(buildRecord(Level.WARN, msg));
+        emit(name, Level.WARN, msg, contextAttrs, null, null, FQCN);
     }
 
     @Override
     public void warnf(String format, Object... args) {
         if (!isWarnEnabled()) return;
-        emit(buildRecord(Level.WARN, String.format(format, args)));
+        emit(name, Level.WARN, String.format(format, args), contextAttrs, null, null, FQCN);
     }
 
     @Override
@@ -174,13 +170,13 @@ abstract class BaseLogger implements Logger {
     @Override
     public void error(String msg) {
         if (!isErrorEnabled()) return;
-        emit(buildRecord(Level.ERROR, msg));
+        emit(name, Level.ERROR, msg, contextAttrs, null, null, FQCN);
     }
 
     @Override
     public void errorf(String format, Object... args) {
         if (!isErrorEnabled()) return;
-        emit(buildRecord(Level.ERROR, String.format(format, args)));
+        emit(name, Level.ERROR, String.format(format, args), contextAttrs, null, null, FQCN);
     }
 
     @Override
@@ -207,35 +203,4 @@ abstract class BaseLogger implements Logger {
         return contextAttrs.with(eventAttrs);
     }
 
-    private LogRecord buildRecord(Level level, String msg) {
-        return new LogRecord(name, level, msg, contextAttrs, null, null, FQCN);
-    }
-
-    // --- Test-only Logger ---
-
-    static final class TestLogger extends BaseLogger {
-        private final Set<Level> enabledLevels;
-        private final List<LogRecord> sink;
-
-        TestLogger(String name, Set<Level> enabledLevels, List<LogRecord> sink,
-                   AttrChain contextAttrs, Clock clock) {
-            super(name, contextAttrs, clock);
-            this.enabledLevels = enabledLevels;
-            this.sink = sink;
-        }
-
-        @Override protected boolean isTraceEnabled() { return enabledLevels.contains(Level.TRACE); }
-        @Override protected boolean isDebugEnabled() { return enabledLevels.contains(Level.DEBUG); }
-        @Override protected boolean isInfoEnabled()  { return enabledLevels.contains(Level.INFO); }
-        @Override protected boolean isWarnEnabled()  { return enabledLevels.contains(Level.WARN); }
-        @Override protected boolean isErrorEnabled() { return enabledLevels.contains(Level.ERROR); }
-
-        @Override
-        protected void emit(LogRecord record) { sink.add(record); }
-
-        @Override
-        public Logger derive(AttrChain contextAttrs) {
-            return new TestLogger(name(), enabledLevels, sink, contextAttrs, clock);
-        }
-    }
 }

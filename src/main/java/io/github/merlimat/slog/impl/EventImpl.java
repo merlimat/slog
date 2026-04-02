@@ -121,15 +121,6 @@ final class EventImpl implements Event {
                 : null;
 
         Iterable<Attr> merged = logger.mergeAttrs(attrs);
-        LogRecord record = new LogRecord(
-                logger.name(),
-                level,
-                msg,
-                merged,
-                throwable,
-                duration,
-                FQCN
-        );
-        logger.emit(record);
+        logger.emit(logger.name(), level, msg, merged, throwable, duration, FQCN);
     }
 }

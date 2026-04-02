@@ -19,6 +19,7 @@ import io.github.merlimat.slog.Logger;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
 import java.time.Clock;
+import java.time.Duration;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.core.LoggerContext;
@@ -110,16 +111,18 @@ final class Log4j2Logger extends BaseLogger {
     }
 
     @Override
-    protected void emit(LogRecord record) {
+    protected void emit(String loggerName, Level level, String message,
+                        Iterable<Attr> attrs, Throwable throwable,
+                        Duration duration, String callerFqcn) {
         MutableLogEvent event = THREAD_LOCAL_EVENT.get();
         event.clear();
 
-        event.setLoggerName(record.loggerName());
-        event.setLoggerFqcn(record.callerFqcn());
-        event.setLevel(toLog4j2Level(record.level()));
-        event.setMessage(log4j.getMessageFactory().newMessage(record.message()));
-        event.setThrown(record.throwable());
-        event.setContextData(buildContextData(record));
+        event.setLoggerName(loggerName);
+        event.setLoggerFqcn(callerFqcn);
+        event.setLevel(toLog4j2Level(level));
+        event.setMessage(log4j.getMessageFactory().newMessage(message));
+        event.setThrown(throwable);
+        event.setContextData(buildContextData(attrs, duration));
         event.setTimeMillis(clock.millis());
 
         Thread currentThread = Thread.currentThread();
@@ -131,18 +134,18 @@ final class Log4j2Logger extends BaseLogger {
         loggerConfig.log(event);
     }
 
-    private static StringMap buildContextData(LogRecord record) {
-        if (!record.hasContext()) {
+    private static StringMap buildContextData(Iterable<Attr> attrs, Duration duration) {
+        if (!hasContext(attrs, duration)) {
             return null;
         }
 
         var map = THREAD_LOCAL_CTX.get();
         map.clear();
-        for (Attr attr : record.attrs()) {
+        for (Attr attr : attrs) {
             map.putValue(attr.key(), attr.value());
         }
-        if (record.duration() != null) {
-            map.putValue("durationMs", record.duration().toMillis());
+        if (duration != null) {
+            map.putValue("durationMs", duration.toMillis());
         }
         return map;
     }

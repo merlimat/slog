@@ -17,6 +17,7 @@ package io.github.merlimat.slog.impl;
 
 import io.github.merlimat.slog.Logger;
 import java.time.Clock;
+import java.time.Duration;
 import org.slf4j.LoggerFactory;
 
 /**
@@ -52,15 +53,16 @@ final class Slf4jSimpleLogger extends BaseLogger {
     protected boolean isErrorEnabled() { return slf4j.isErrorEnabled(); }
 
     @Override
-    protected void emit(LogRecord record) {
-        String msg = record.hasContext() ? formatMessage(record) : record.message();
-        Throwable t = record.throwable();
-        switch (record.level()) {
-            case TRACE -> { if (t != null) slf4j.trace(msg, t); else slf4j.trace(msg); }
-            case DEBUG -> { if (t != null) slf4j.debug(msg, t); else slf4j.debug(msg); }
-            case INFO ->  { if (t != null) slf4j.info(msg, t);  else slf4j.info(msg);  }
-            case WARN ->  { if (t != null) slf4j.warn(msg, t);  else slf4j.warn(msg);  }
-            case ERROR -> { if (t != null) slf4j.error(msg, t); else slf4j.error(msg); }
+    protected void emit(String loggerName, Level level, String message,
+                        Iterable<Attr> attrs, Throwable throwable,
+                        Duration duration, String callerFqcn) {
+        String msg = hasContext(attrs, duration) ? formatMessage(message, attrs, duration) : message;
+        switch (level) {
+            case TRACE -> { if (throwable != null) slf4j.trace(msg, throwable); else slf4j.trace(msg); }
+            case DEBUG -> { if (throwable != null) slf4j.debug(msg, throwable); else slf4j.debug(msg); }
+            case INFO ->  { if (throwable != null) slf4j.info(msg, throwable);  else slf4j.info(msg);  }
+            case WARN ->  { if (throwable != null) slf4j.warn(msg, throwable);  else slf4j.warn(msg);  }
+            case ERROR -> { if (throwable != null) slf4j.error(msg, throwable); else slf4j.error(msg); }
         }
     }
 
@@ -69,14 +71,14 @@ final class Slf4jSimpleLogger extends BaseLogger {
         return new Slf4jSimpleLogger(name(), slf4j, contextAttrs, clock);
     }
 
-    private static String formatMessage(LogRecord record) {
+    private static String formatMessage(String message, Iterable<Attr> attrs, Duration duration) {
         var sb = new StringBuilder();
-        sb.append(record.message());
-        for (Attr attr : record.attrs()) {
+        sb.append(message);
+        for (Attr attr : attrs) {
             sb.append(' ').append(attr.key()).append('=').append(attr.valueAsString());
         }
-        if (record.duration() != null) {
-            sb.append(" durationMs=").append(record.duration().toMillis());
+        if (duration != null) {
+            sb.append(" durationMs=").append(duration.toMillis());
         }
         return sb.toString();
     }

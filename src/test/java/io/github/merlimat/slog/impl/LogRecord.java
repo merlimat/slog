@@ -18,22 +18,16 @@ package io.github.merlimat.slog.impl;
 import java.time.Duration;
 
 /**
- * An immutable snapshot of a structured log event, ready for emission by the logging backend.
- *
- * <p>A LogRecord is assembled by the {@link io.github.merlimat.slog.Logger} (for direct calls)
- * or by {@link io.github.merlimat.slog.Event#log(String)} (for the fluent builder), and then
- * passed to the backend-specific {@code emit} method.
+ * An immutable snapshot of a structured log event, used by test infrastructure
+ * to capture emitted records for assertions.
  *
  * @param loggerName the name of the logger that produced this record
  * @param level      the severity level
  * @param message    the human-readable log message
- * @param attrs      structured key-value attributes (context + per-event); may be a
- *                   zero-copy composite view backed by the original lists
+ * @param attrs      structured key-value attributes
  * @param throwable  an optional attached exception, may be {@code null}
- * @param duration   elapsed time if the event was {@linkplain io.github.merlimat.slog.Event#timed() timed},
- *                   otherwise {@code null}
- * @param callerFqcn fully-qualified class name of the last slog frame, used by
- *                   handlers to resolve the correct caller location
+ * @param duration   elapsed time if timed, otherwise {@code null}
+ * @param callerFqcn fully-qualified class name of the last slog frame
  */
 record LogRecord(
         String loggerName,
@@ -43,9 +37,4 @@ record LogRecord(
         Throwable throwable,
         Duration duration,
         String callerFqcn
-) {
-
-    boolean hasContext() {
-        return (attrs != null && attrs != AttrChain.EMPTY) || duration != null;
-    }
-}
+) {}

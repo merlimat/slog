@@ -18,8 +18,6 @@ package io.github.merlimat.slog.impl;
 import io.github.merlimat.slog.Logger;
 import io.github.merlimat.slog.LoggerBuilder;
 import java.time.Clock;
-import java.util.List;
-import java.util.Set;
 
 /**
  * Auto-discovers the best available logging backend at startup and creates
@@ -68,22 +66,6 @@ public class LoggerDiscovery {
      */
     public static LoggerBuilder newBuilder(Logger parent) {
         return new LoggerBuilderImpl(parent);
-    }
-
-    /**
-     * Creates a test logger that captures records into the given sink.
-     *
-     * @param name          the logger name
-     * @param enabledLevels the set of enabled levels
-     * @param sink          the list to collect emitted records
-     * @return a new test logger
-     */
-    static Logger forTest(String name, Set<Level> enabledLevels, List<LogRecord> sink) {
-        return BaseLogger.forTest(name, enabledLevels, sink);
-    }
-
-    static Logger forTest(String name, Set<Level> enabledLevels, List<LogRecord> sink, Clock clock) {
-        return BaseLogger.forTest(name, enabledLevels, sink, clock);
     }
 
     private static Backend discoverBackend() {
