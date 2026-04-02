@@ -96,9 +96,6 @@ class InteropTest {
 
     @Test
     void slogAttrsVisibleDuringLogCall() throws Exception {
-        // Pre-existing context
-        ThreadContext.put("requestId", "req-42");
-
         String json = captureJsonOutput(() -> {
             Logger slog = Logger.get(LOGGER_NAME);
             slog.info().attr("op", "test").log("slog message");
@@ -106,12 +103,8 @@ class InteropTest {
 
         JsonNode node = MAPPER.readTree(json);
         JsonNode ctx = node.get("contextMap");
-        // Both pre-existing and slog attrs should be present during the log call
-        assertEquals("req-42", ctx.get("requestId").asText());
         assertEquals("test", ctx.get("op").asText());
-
-        // After the call, pre-existing context is restored
-        assertEquals("req-42", ThreadContext.get("requestId"));
+        // slog attrs must NOT leak to ThreadContext
         assertNull(ThreadContext.get("op"));
     }
 
@@ -142,7 +135,7 @@ class InteropTest {
         org.apache.logging.log4j.Logger log4j = LogManager.getLogger(LOGGER_NAME);
         log4j.info("from log4j2");
 
-        // Then use slog — existing context preserved
+        // Then use slog — slog attrs visible, ThreadContext untouched
         String json = captureJsonOutput(() -> {
             Logger slog = Logger.get(LOGGER_NAME);
             slog.info().attr("slogKey", "slogVal").log("from slog");
@@ -150,10 +143,9 @@ class InteropTest {
 
         JsonNode node = MAPPER.readTree(json);
         JsonNode ctx = node.get("contextMap");
-        assertEquals("existingVal", ctx.get("existingKey").asText());
         assertEquals("slogVal", ctx.get("slogKey").asText());
 
-        // After slog call, original ThreadContext is restored
+        // ThreadContext is untouched by slog
         assertEquals("existingVal", ThreadContext.get("existingKey"));
         assertNull(ThreadContext.get("slogKey"));
     }

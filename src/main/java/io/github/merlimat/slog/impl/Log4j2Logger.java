@@ -18,24 +18,28 @@ package io.github.merlimat.slog.impl;
 import io.github.merlimat.slog.Logger;
 import java.time.Clock;
 
-import java.util.Map;
 import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.ThreadContext;
-import org.apache.logging.log4j.spi.ExtendedLogger;
+import org.apache.logging.log4j.core.LogEvent;
+import org.apache.logging.log4j.core.config.LoggerConfig;
+import org.apache.logging.log4j.core.impl.Log4jLogEvent;
+import org.apache.logging.log4j.message.Message;
+import org.apache.logging.log4j.util.SortedArrayStringMap;
+import org.apache.logging.log4j.util.StringMap;
 
 /**
  * Logger implementation bound directly to a Log4j2 {@link ExtendedLogger},
  * eliminating handler indirection on every call.
  */
 final class Log4j2Logger extends BaseLogger {
-    private final ExtendedLogger log4j;
+    private final org.apache.logging.log4j.core.Logger log4j;
 
     Log4j2Logger(String name, AttrChain contextAttrs, Clock clock) {
         super(name, contextAttrs, clock);
-        this.log4j = (ExtendedLogger) LogManager.getLogger(name);
+        this.log4j = (org.apache.logging.log4j.core.Logger) LogManager.getLogger(name);
     }
 
-    private Log4j2Logger(String name, ExtendedLogger log4j, AttrChain contextAttrs, Clock clock) {
+    private Log4j2Logger(String name, org.apache.logging.log4j.core.Logger log4j,
+                          AttrChain contextAttrs, Clock clock) {
         super(name, contextAttrs, clock);
         this.log4j = log4j;
     }
@@ -57,30 +61,42 @@ final class Log4j2Logger extends BaseLogger {
 
     @Override
     protected void emit(LogRecord record) {
-        boolean hasContext = record.hasContext();
-        Map<String, String> savedCtx =
-                ThreadContext.isEmpty() ? null : ThreadContext.getImmutableContext();
+        org.apache.logging.log4j.Level log4jLevel = toLog4j2Level(record.level());
 
-        try {
-            for (Attr attr : record.attrs()) {
-                ThreadContext.put(attr.key(), attr.valueAsString());
-            }
-            if (record.duration() != null) {
-                ThreadContext.put("durationMs", String.valueOf(record.duration().toMillis()));
-            }
+        StringMap contextData = buildContextData(record);
+        Message message = log4j.getMessageFactory().newMessage(record.message());
 
-            org.apache.logging.log4j.Level log4jLevel = toLog4j2Level(record.level());
-            var message = log4j.getMessageFactory().newMessage(record.message());
-            log4j.logMessage(record.callerFqcn(), log4jLevel, null, message, record.throwable());
-        } finally {
-            if (hasContext) {
-                ThreadContext.clearMap();
-            }
+        LogEvent event = Log4jLogEvent.newBuilder()
+                .setLoggerName(record.loggerName())
+                .setLoggerFqcn(record.callerFqcn())
+                .setLevel(log4jLevel)
+                .setMessage(message)
+                .setThrown(record.throwable())
+                .setContextData(contextData)
+                .setThreadName(Thread.currentThread().getName())
+                .build();
 
-            if (savedCtx != null) {
-                ThreadContext.putAll(savedCtx);
-            }
+        LoggerConfig loggerConfig = log4j.get();
+        loggerConfig.log(event);
+    }
+
+    private static final ThreadLocal<StringMap> THREAD_LOCAL_CTX =
+            ThreadLocal.withInitial(SortedArrayStringMap::new);
+
+    private static StringMap buildContextData(LogRecord record) {
+        if (!record.hasContext()) {
+            return null;
         }
+
+        var map = THREAD_LOCAL_CTX.get();
+        map.clear();
+        for (Attr attr : record.attrs()) {
+            map.putValue(attr.key(), attr.valueAsString());
+        }
+        if (record.duration() != null) {
+            map.putValue("durationMs", String.valueOf(record.duration().toMillis()));
+        }
+        return map;
     }
 
     @Override
