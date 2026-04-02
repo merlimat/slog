@@ -12,7 +12,7 @@ A lightweight structured logging library for Java, inspired by Go's [log/slog](h
 - **Deferred logging** — `log.debug(e -> e.attr("k", v()).log(msg()))` wraps everything in a lambda that is only invoked when the level is enabled — ideal for expensive computations
 - **Printf formatting** — `log.infof("Processed %d items", count)` and `log.info().logf(...)` with deferred formatting
 - **Timed events** — automatically records elapsed duration
-- **Backend auto-discovery** — delegates to Log4j2 (via ThreadContext) if available, falls back to SLF4J (via MDC); no hard runtime dependencies
+- **Backend auto-discovery** — delegates to Log4j2 if available, falls back to SLF4J; no hard runtime dependencies
 
 ## Documentation
 
@@ -128,10 +128,11 @@ Resolution (last-writer-wins, etc.) is left to the logging backend.
 
 ### Log4j2 (preferred)
 
-When Log4j2 is on the classpath, structured attributes are placed into the
-Log4j2 `ThreadContext`. With `JsonLayout` and `properties="true"`, each
-attribute appears as an individual field inside the `contextMap` JSON object.
-With `PatternLayout`, use `%X` for the full map or `%X{key}` for individual keys.
+When Log4j2 is on the classpath, structured attributes are set directly on the
+log event's context data — bypassing `ThreadContext` entirely for maximum
+performance. With `JsonLayout` and `properties="true"`, each attribute appears
+as an individual field inside the `contextMap` JSON object. With `PatternLayout`,
+use `%X` for the full map or `%X{key}` for individual keys.
 
 ### SLF4J (fallback)
 
@@ -160,6 +161,65 @@ public class MyService {
 ```
 
 Lombok will generate `private static final Logger log = Logger.get(MyService.class);`.
+
+## Performance
+
+slog is designed to add minimal overhead on top of the underlying logging framework.
+JMH benchmarks compare slog against direct Log4j2 and SLF4J calls, all writing to a
+Null appender (measuring framework overhead, not I/O). Root logger level is INFO.
+
+### Disabled path (TRACE call with INFO level) — ops/μs, higher is better
+
+```
+ Log4j2 Simple       ████████████████████████████████████████████  408.9
+ Log4j2 Positional   ████████████████████████████████████████████  403.7
+ slog Simple         ████████████████████████████████████████      367.6
+ slog Fluent         ███████████████████████████████████████       364.7
+ SLF4J Simple        ███████████████████████████████████████       367.4
+ SLF4J Fluent        ███████████████████████████████████████       360.4
+ SLF4J Positional    ███████████████████████████████████████       361.7
+```
+
+When the level is disabled, slog performs a single `isInfoEnabled()` boolean check
+and returns immediately — on par with calling Log4j2 or SLF4J directly. The fluent
+API returns a `NoopEvent` singleton, so `attr()` and `log()` calls are no-ops with
+zero allocation.
+
+### Enabled path (INFO call) — ops/μs, higher is better
+
+```
+ slog Simple         ████████████████████████████████████████████   24.3
+ SLF4J Simple        ██████████████████████████                     13.9
+ Log4j2 Simple       █████████████████████████                      13.6
+ slog Fluent         █████████████████                               9.5
+ slog Fluent+Ctx     ██████████████                                  7.8
+ Log4j2 Positional   █████████████                                   7.4
+ SLF4J Positional    ███████████                                     6.2
+ SLF4J Fluent        ███████                                         4.1
+```
+
+**slog Simple** (no structured attrs) is **1.8x faster** than native Log4j2/SLF4J.
+This is achieved by building a `MutableLogEvent` directly and calling
+`LoggerConfig.log()`, completely bypassing `ThreadContext` and the
+`ContextDataInjector` pipeline.
+
+**slog Fluent** (3 structured key-value attributes) runs at 9.5 ops/μs — comparable
+to Log4j2 positional logging (7.4 ops/μs) which also carries 3 values but as
+interpolated strings rather than structured data.
+
+### Running the benchmarks
+
+```bash
+./gradlew :benchmark:jmh
+```
+
+Results are written to `benchmark/build/results/jmh/results.txt`.
+
+To generate async-profiler flame graphs alongside the benchmarks:
+
+```bash
+./gradlew :benchmark:jmh -PjmhProfilers='async:libPath=/path/to/libasyncProfiler.dylib;output=flamegraph;dir=profile-results'
+```
 
 ## Building
 
