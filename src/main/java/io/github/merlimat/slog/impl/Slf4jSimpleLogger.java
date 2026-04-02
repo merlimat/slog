@@ -18,7 +18,6 @@ package io.github.merlimat.slog.impl;
 import io.github.merlimat.slog.Logger;
 import java.time.Clock;
 import java.time.Duration;
-import java.util.function.Supplier;
 import org.slf4j.LoggerFactory;
 
 /**
@@ -84,9 +83,7 @@ final class Slf4jSimpleLogger extends BaseLogger {
             sb.append(' ').append(attr.key()).append('=').append(attr.valueAsString());
         }
         for (int i = 0; i < eventAttrCount; i++) {
-            Object v = eventValues[i];
-            Object resolved = v instanceof Supplier<?> s ? s.get() : v;
-            sb.append(' ').append(eventKeys[i]).append('=').append(resolved);
+            sb.append(' ').append(eventKeys[i]).append('=').append(Attr.resolveValue(eventValues[i]));
         }
         if (duration != null) {
             sb.append(" durationMs=").append(duration.toMillis());

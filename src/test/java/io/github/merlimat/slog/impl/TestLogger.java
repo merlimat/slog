@@ -21,7 +21,6 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
-import java.util.function.Supplier;
 
 /**
  * Test-only logger that captures emitted records into a sink list.
@@ -62,8 +61,7 @@ final class TestLogger extends BaseLogger {
             attrs.add(attr);
         }
         for (int i = 0; i < eventAttrCount; i++) {
-            Object v = eventValues[i];
-            attrs.add(new Attr(eventKeys[i], v instanceof Supplier<?> s ? s.get() : v));
+            attrs.add(new Attr(eventKeys[i], Attr.resolveValue(eventValues[i])));
         }
         sink.add(new LogRecord(loggerName, level, message, attrs, throwable, duration, callerFqcn));
     }

@@ -15,7 +15,6 @@
  */
 package io.github.merlimat.slog;
 
-import java.util.function.Supplier;
 
 /**
  * A builder for constructing a child logger with multiple context attributes
@@ -55,12 +54,21 @@ public interface LoggerBuilder {
      * Adds a lazily-evaluated context attribute. The supplier is invoked each
      * time a log event carrying this attribute is emitted, making it suitable
      * for values that change over time (e.g., connection state, queue depth).
+     * If the supplier throws an exception, the exception message is used as the
+     * attribute value.
+     *
+     * <pre>{@code
+     * Logger log = Logger.get(MyService.class).with()
+     *     .attr("queueDepth", () -> queue.size())
+     *     .attr("config", () -> loadConfig())  // may throw IOException
+     *     .build();
+     * }</pre>
      *
      * @param key   the attribute name
      * @param value a supplier that produces the attribute value at emit time
      * @return this builder, for chaining
      */
-    LoggerBuilder attr(String key, Supplier<?> value);
+    LoggerBuilder attr(String key, ThrowingSupplier<?> value);
 
     /**
      * Builds and returns the child logger with all accumulated attributes

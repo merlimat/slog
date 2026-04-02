@@ -15,7 +15,6 @@
  */
 package io.github.merlimat.slog;
 
-import java.util.function.Supplier;
 
 /**
  * A fluent builder for constructing a structured log event.
@@ -92,13 +91,20 @@ public interface Event {
     /**
      * Adds a lazily-evaluated attribute. The supplier is invoked only when the
      * event is actually emitted, making it suitable for values that are expensive
-     * to compute.
+     * to compute. If the supplier throws an exception, the exception message is
+     * used as the attribute value instead.
+     *
+     * <pre>{@code
+     * log.info()
+     *     .attr("config", () -> loadConfig())   // may throw IOException
+     *     .log("Started");
+     * }</pre>
      *
      * @param key   the attribute name
      * @param value a supplier that produces the attribute value at emit time
      * @return this event, for chaining
      */
-    Event attr(String key, Supplier<?> value);
+    Event attr(String key, ThrowingSupplier<?> value);
 
     /**
      * Attaches an exception to this event, including the full stack trace.
@@ -138,11 +144,18 @@ public interface Event {
     /**
      * Emits the log event with a lazily-evaluated message. The supplier is invoked
      * only when the level is enabled, making it suitable for messages that are
-     * expensive to construct.
+     * expensive to construct. If the supplier throws an exception, the event is
+     * still emitted with the exception message as the log message.
+     *
+     * <pre>{@code
+     * log.info()
+     *     .attr("op", "export")
+     *     .log(() -> buildDetailedMessage());  // may throw
+     * }</pre>
      *
      * @param msgSupplier a supplier that produces the log message
      */
-    void log(Supplier<String> msgSupplier);
+    void log(ThrowingSupplier<String> msgSupplier);
 
     /**
      * Emits the log event with a formatted message using Java's printf-style

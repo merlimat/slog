@@ -15,7 +15,7 @@
  */
 package io.github.merlimat.slog.impl;
 
-import java.util.function.Supplier;
+import io.github.merlimat.slog.ThrowingSupplier;
 
 /**
  * A key-value pair representing a single structured logging attribute.
@@ -42,13 +42,32 @@ record Attr(String key, Object value) {
     }
 
     /**
-     * Returns the resolved value, unwrapping {@link Supplier} instances if needed.
+     * Resolves a value, unwrapping {@link ThrowingSupplier} instances if needed.
+     * If the supplier throws, the exception message is returned as the value.
      *
-     * @return the resolved value, or the raw value if not a {@code Supplier}
+     * @param v the value to resolve
+     * @return the resolved value
+     */
+    static Object resolveValue(Object v) {
+        if (v instanceof ThrowingSupplier<?> s) {
+            try {
+                return s.get();
+            } catch (Exception e) {
+                return "<error: " + e.getMessage() + ">";
+            }
+        }
+        return v;
+    }
+
+    /**
+     * Returns the resolved value, unwrapping {@link ThrowingSupplier} instances if needed.
+     * If the supplier throws, the exception message is returned.
+     *
+     * @return the resolved value, or the raw value if not a {@code ThrowingSupplier}
      */
     @Override
     public Object value() {
-        return value instanceof Supplier<?> s ? s.get() : value;
+        return resolveValue(value);
     }
 
     /**

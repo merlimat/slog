@@ -20,7 +20,6 @@ import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
 import java.time.Clock;
 import java.time.Duration;
-import java.util.function.Supplier;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.core.LoggerContext;
@@ -149,8 +148,7 @@ final class Log4j2Logger extends BaseLogger {
             map.putValue(attr.key(), attr.value());
         }
         for (int i = 0; i < eventAttrCount; i++) {
-            Object v = eventValues[i];
-            map.putValue(eventKeys[i], v instanceof Supplier<?> s ? s.get() : v);
+            map.putValue(eventKeys[i], Attr.resolveValue(eventValues[i]));
         }
         if (duration != null) {
             map.putValue("durationMs", duration.toMillis());

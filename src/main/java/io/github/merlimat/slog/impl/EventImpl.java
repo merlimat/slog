@@ -16,11 +16,11 @@
 package io.github.merlimat.slog.impl;
 
 import io.github.merlimat.slog.Event;
+import io.github.merlimat.slog.ThrowingSupplier;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
-import java.util.function.Supplier;
 
 final class EventImpl implements Event {
     static final String FQCN = EventImpl.class.getName();
@@ -84,7 +84,7 @@ final class EventImpl implements Event {
     }
 
     @Override
-    public Event attr(String key, Supplier<?> value) {
+    public Event attr(String key, ThrowingSupplier<?> value) {
         return attr(key, (Object) value);
     }
 
@@ -116,8 +116,12 @@ final class EventImpl implements Event {
     }
 
     @Override
-    public void log(Supplier<String> msgSupplier) {
-        emit(msgSupplier.get());
+    public void log(ThrowingSupplier<String> msgSupplier) {
+        try {
+            emit(msgSupplier.get());
+        } catch (Exception e) {
+            emit("<error: " + e.getMessage() + ">");
+        }
     }
 
     @Override

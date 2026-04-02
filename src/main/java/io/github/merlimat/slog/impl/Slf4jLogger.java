@@ -19,7 +19,6 @@ import io.github.merlimat.slog.Logger;
 
 import java.time.Clock;
 import java.time.Duration;
-import java.util.function.Supplier;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 
@@ -87,8 +86,7 @@ final class Slf4jLogger extends BaseLogger {
                 MDC.put(attr.key(), attr.valueAsString());
             }
             for (int i = 0; i < eventAttrCount; i++) {
-                Object v = eventValues[i];
-                Object resolved = v instanceof Supplier<?> s ? s.get() : v;
+                Object resolved = Attr.resolveValue(eventValues[i]);
                 MDC.put(eventKeys[i], resolved == null ? null : String.valueOf(resolved));
             }
             if (duration != null) {

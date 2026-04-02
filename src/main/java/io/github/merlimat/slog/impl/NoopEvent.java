@@ -16,7 +16,7 @@
 package io.github.merlimat.slog.impl;
 
 import io.github.merlimat.slog.Event;
-import java.util.function.Supplier;
+import io.github.merlimat.slog.ThrowingSupplier;
 
 /**
  * Singleton no-op {@link Event} returned when the log level is disabled.
@@ -56,7 +56,7 @@ enum NoopEvent implements Event {
     }
 
     @Override
-    public Event attr(String key, Supplier<?> value) {
+    public Event attr(String key, ThrowingSupplier<?> value) {
         return this;
     }
 
@@ -81,7 +81,7 @@ enum NoopEvent implements Event {
     }
 
     @Override
-    public void log(Supplier<String> msgSupplier) {
+    public void log(ThrowingSupplier<String> msgSupplier) {
         // no-op — supplier is never invoked
     }
 

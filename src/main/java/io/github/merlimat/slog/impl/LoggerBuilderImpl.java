@@ -17,9 +17,9 @@ package io.github.merlimat.slog.impl;
 
 import io.github.merlimat.slog.Logger;
 import io.github.merlimat.slog.LoggerBuilder;
+import io.github.merlimat.slog.ThrowingSupplier;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.Supplier;
 
 /**
  * Default implementation of {@link LoggerBuilder}.
@@ -49,7 +49,7 @@ final class LoggerBuilderImpl implements LoggerBuilder {
     }
 
     @Override
-    public LoggerBuilder attr(String key, Supplier<?> value) {
+    public LoggerBuilder attr(String key, ThrowingSupplier<?> value) {
         attrs.add(Attr.of(key, value));
         return this;
     }

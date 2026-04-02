@@ -10,6 +10,7 @@ A lightweight structured logging library for Java, inspired by Go's [log/slog](h
 - **Cross-component context** — propagate context across component boundaries with `builder.ctx(otherLogger)`
 - **Fluent event builder** — `log.info().attr("k", "v").log("msg")` for structured events; returns a no-op singleton when the level is disabled
 - **Deferred logging** — `log.debug(e -> e.attr("k", v()).log(msg()))` wraps everything in a lambda that is only invoked when the level is enabled — ideal for expensive computations
+- **Throwing suppliers** — attribute and message suppliers may throw checked exceptions; failures are caught and the exception message is recorded as the value, so a failing supplier never crashes the application
 - **Printf formatting** — `log.infof("Processed %d items", count)` and `log.info().logf(...)` with deferred formatting
 - **Timed events** — automatically records elapsed duration
 - **Backend auto-discovery** — delegates to Log4j2 if available, falls back to SLF4J; no hard runtime dependencies
@@ -58,6 +59,18 @@ log.debug(e -> e
     .attr("key", expensiveValue())
     .attr("dump", generateDump())
     .log(expensiveMessage()));
+
+// Lazy attributes — supplier is only invoked at emit time
+log.info()
+    .attr("snapshot", () -> generateExpensiveSnapshot())
+    .log("State captured");
+
+// Throwing suppliers — checked exceptions are caught gracefully;
+// the exception message becomes the attribute value
+log.info()
+    .attr("config", () -> loadConfigFromDisk())  // throws IOException
+    .log("Service started");
+// If loadConfigFromDisk() fails: config="<error: file not found>"
 
 // Timed events
 Event e = log.info().timed();

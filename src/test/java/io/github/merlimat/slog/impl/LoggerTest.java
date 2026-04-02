@@ -28,7 +28,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.function.Supplier;
+import io.github.merlimat.slog.ThrowingSupplier;
 import java.util.stream.StreamSupport;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -802,7 +802,7 @@ class LoggerTest {
     void supplierAttrResolvedAtEmitTime() {
         Logger log = TestLogger.create("test", enabledLevels, records);
         AtomicInteger counter = new AtomicInteger(0);
-        Supplier<String> supplier = () -> "value-" + counter.incrementAndGet();
+        ThrowingSupplier<String> supplier = () -> "value-" + counter.incrementAndGet();
 
         log.info().attr("key", supplier).log("msg");
 
@@ -817,7 +817,7 @@ class LoggerTest {
     void supplierAttrNotInvokedWhenDisabled() {
         Logger log = TestLogger.create("test", enabledLevels, records);
         AtomicBoolean invoked = new AtomicBoolean(false);
-        Supplier<String> supplier = () -> {
+        ThrowingSupplier<String> supplier = () -> {
             invoked.set(true);
             return "expensive";
         };
@@ -857,7 +857,7 @@ class LoggerTest {
     @Test
     void supplierContextAttrOnLogger() {
         AtomicInteger counter = new AtomicInteger(0);
-        Supplier<String> supplier = () -> "state-" + counter.incrementAndGet();
+        ThrowingSupplier<String> supplier = () -> "state-" + counter.incrementAndGet();
 
         Logger log = TestLogger.create("test", enabledLevels, records).with()
                 .attr("dynamic", supplier)
@@ -875,7 +875,7 @@ class LoggerTest {
     @Test
     void supplierContextAttrWithEventAttrs() {
         AtomicInteger counter = new AtomicInteger(0);
-        Supplier<String> supplier = () -> "conn-" + counter.incrementAndGet();
+        ThrowingSupplier<String> supplier = () -> "conn-" + counter.incrementAndGet();
 
         Logger log = TestLogger.create("test", enabledLevels, records).with()
                 .attr("connState", supplier)
@@ -897,9 +897,55 @@ class LoggerTest {
         Logger log = TestLogger.create("test", enabledLevels, records);
         AtomicInteger counter = new AtomicInteger(41);
 
-        log.info().attr("count", (Supplier<?>) counter::incrementAndGet).log("msg");
+        log.info().attr("count", (ThrowingSupplier<?>) counter::incrementAndGet).log("msg");
 
         assertEquals(1, records.size());
         assertEquals("42", attrs(records.get(0)).get(0).valueAsString());
+    }
+
+    @Test
+    void throwingSupplierAttrCapturesExceptionMessage() {
+        Logger log = TestLogger.create("test", enabledLevels, records);
+
+        log.info()
+                .attr("config", (ThrowingSupplier<?>) () -> {
+                    throw new java.io.IOException("file not found");
+                })
+                .log("startup");
+
+        assertEquals(1, records.size());
+        List<Attr> a = attrs(records.get(0));
+        assertEquals(1, a.size());
+        assertEquals("config", a.get(0).key());
+        assertEquals("<error: file not found>", a.get(0).valueAsString());
+    }
+
+    @Test
+    void throwingSupplierMessageCapturesExceptionMessage() {
+        Logger log = TestLogger.create("test", enabledLevels, records);
+
+        log.info().log((ThrowingSupplier<String>) () -> {
+            throw new RuntimeException("boom");
+        });
+
+        assertEquals(1, records.size());
+        assertEquals("<error: boom>", records.get(0).message());
+    }
+
+    @Test
+    void throwingSupplierContextAttrCapturesExceptionMessage() {
+        Logger log = TestLogger.create("test", enabledLevels, records).with()
+                .attr("config", (ThrowingSupplier<?>) () -> {
+                    throw new java.io.IOException("permission denied");
+                })
+                .build();
+
+        log.info("test");
+
+        assertEquals(1, records.size());
+        List<Attr> a = attrs(records.get(0));
+        assertEquals(1, a.size());
+        assertEquals("config", a.get(0).key());
+        assertEquals("<error: permission denied>", a.get(0).valueAsString());
     }
 }
