@@ -13,12 +13,12 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.github.merlimat.slog;
+package io.github.merlimat.slog.impl;
 
 /**
  * Log severity levels, ordered from least to most severe.
  */
-public enum Level {
+enum Level {
     /** Finest-grained informational events. */
     TRACE,
     /** Fine-grained informational events useful for debugging. */

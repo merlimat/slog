@@ -48,8 +48,7 @@
  * <ul>
  *   <li>{@link io.github.merlimat.slog.Logger} — creates and emits log events</li>
  *   <li>{@link io.github.merlimat.slog.Event} — fluent builder for a single log event</li>
- *   <li>{@link io.github.merlimat.slog.Level} — log severity levels</li>
- *   <li>{@link io.github.merlimat.slog.Handler} — backend SPI for routing log records</li>
+ *   <li>{@link io.github.merlimat.slog.LoggerBuilder} — builder for child loggers with context</li>
  * </ul>
  *
  * <p>The library auto-discovers the logging backend at runtime: Log4j2 if available,

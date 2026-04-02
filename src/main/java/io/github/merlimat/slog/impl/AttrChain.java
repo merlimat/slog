@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.github.merlimat.slog;
+package io.github.merlimat.slog.impl;
 
 import java.util.Collections;
 import java.util.Iterator;
@@ -21,7 +21,7 @@ import java.util.List;
 import java.util.NoSuchElementException;
 
 /**
- * An immutable linked chain of attribute lists, used internally by {@link Logger}
+ * An immutable linked chain of attribute lists, used internally by {@link io.github.merlimat.slog.Logger}
  * to share parent context without copying.
  *
  * <p>Each node holds its own small list of attrs and a pointer to the parent node.
@@ -29,7 +29,7 @@ import java.util.NoSuchElementException;
  */
 final class AttrChain implements Iterable<Attr> {
 
-    static final AttrChain EMPTY = new AttrChain(null, List.of());
+    public static final AttrChain EMPTY = new AttrChain(null, List.of());
 
     private final AttrChain parent;
     private final List<Attr> own;
@@ -39,11 +39,11 @@ final class AttrChain implements Iterable<Attr> {
         this.own = own;
     }
 
-    AttrChain with(Attr attr) {
+    public AttrChain with(Attr attr) {
         return new AttrChain(this, List.of(attr));
     }
 
-    AttrChain with(List<Attr> attrs) {
+    public AttrChain with(List<Attr> attrs) {
         if (attrs.isEmpty()) {
             return this;
         }
@@ -54,7 +54,7 @@ final class AttrChain implements Iterable<Attr> {
      * Returns a new chain that has {@code other} as a prefix, followed by this chain's attrs.
      * Used to adopt another logger's context.
      */
-    AttrChain withPrefix(AttrChain other) {
+    public AttrChain withPrefix(AttrChain other) {
         if (other.isEmpty()) {
             return this;
         }
@@ -80,7 +80,7 @@ final class AttrChain implements Iterable<Attr> {
         return result;
     }
 
-    boolean isEmpty() {
+    public boolean isEmpty() {
         return this == EMPTY;
     }
 

@@ -15,12 +15,8 @@
  */
 package io.github.merlimat.slog;
 
-import io.github.merlimat.slog.handler.HandlerDiscovery;
-import java.time.Clock;
-import java.util.ArrayList;
-import java.util.List;
+import io.github.merlimat.slog.impl.LoggerDiscovery;
 import java.util.function.Consumer;
-import java.util.function.Supplier;
 
 /**
  * A structured logger that emits log records with attached key-value attributes.
@@ -40,20 +36,16 @@ import java.util.function.Supplier;
  * }</pre>
  *
  * <p><b>Zero overhead when disabled:</b> All logging methods check
- * {@link Handler#isEnabled} before constructing any objects. The fluent
+ * the backend's level guard before constructing any objects. The fluent
  * {@code info()}, {@code error()}, etc. return a no-op {@link Event} singleton when the
  * level is disabled.
  *
  * <p><b>Duplicate keys:</b> When the same key appears at multiple levels
- * (parent context, inherited via {@link Builder#ctx}, builder attrs, or
+ * (parent context, inherited via {@link LoggerBuilder#ctx}, builder attrs, or
  * per-event kvs), all occurrences are preserved in order. Resolution
  * (last-writer-wins, etc.) is left to the logging backend.
  */
-public class Logger {
-    private final String name;
-    private final Handler handler;
-    private final AttrChain contextAttrs;
-    private final Clock clock;
+public interface Logger {
 
     /**
      * Creates a new structured logger named after the given class.
@@ -69,7 +61,7 @@ public class Logger {
      * @param clazz the class whose name will be used as the logger name
      * @return a new {@code Logger} instance
      */
-    public static Logger get(Class<?> clazz) {
+    static Logger get(Class<?> clazz) {
         return get(clazz.getName());
     }
 
@@ -79,28 +71,19 @@ public class Logger {
      * @param name the logger name (typically a fully-qualified class name)
      * @return a new {@code Logger} instance
      */
-    public static Logger get(String name) {
-        return new Logger(name, HandlerDiscovery.get(), AttrChain.EMPTY, Clock.systemUTC());
-    }
-
-    // Visible for testing
-    static Logger get(String name, Handler handler) {
-        return new Logger(name, handler, AttrChain.EMPTY, Clock.systemUTC());
-    }
-
-    static Logger get(String name, Handler handler, Clock clock) {
-        return new Logger(name, handler, AttrChain.EMPTY, clock);
-    }
-
-    Logger(String name, Handler handler, AttrChain contextAttrs, Clock clock) {
-        this.name = name;
-        this.handler = handler;
-        this.contextAttrs = contextAttrs;
-        this.clock = clock;
+    static Logger get(String name) {
+        return LoggerDiscovery.createLogger(name);
     }
 
     /**
-     * Returns a {@link Builder} for constructing a child logger with multiple
+     * Returns the logger name.
+     *
+     * @return the logger name
+     */
+    String name();
+
+    /**
+     * Returns a {@link LoggerBuilder} for constructing a child logger with multiple
      * context attributes in a single step.
      *
      * <pre>{@code
@@ -113,351 +96,155 @@ public class Logger {
      *
      * @return a new builder rooted at this logger
      */
-    public Builder with() {
-        return new Builder(this);
-    }
-
-    /**
-     * A builder for constructing a child logger with multiple context attributes
-     * batched into a single chain node, avoiding intermediate Logger instances.
-     */
-    public static final class Builder {
-        private final Logger parent;
-        private final List<Attr> attrs = new ArrayList<>();
-        private AttrChain inherited = AttrChain.EMPTY;
-
-        Builder(Logger parent) {
-            this.parent = parent;
-        }
-
-        /**
-         * Inherits all context attributes from another logger. Can be called
-         * multiple times to compose context from several sources — attrs are
-         * appended in call order.
-         *
-         * <pre>{@code
-         * Logger log = Logger.get(MyClass.class).with()
-         *     .ctx(producerLog)   // adds topic, clientAddr
-         *     .ctx(requestLog)    // adds requestId, traceId
-         *     .attr("extra", v)
-         *     .build();
-         * // order: producerLog attrs → requestLog attrs → extra
-         * }</pre>
-         *
-         * @param other the logger whose context to inherit
-         * @return this builder, for chaining
-         */
-        public Builder ctx(Logger other) {
-            if (!other.contextAttrs.isEmpty()) {
-                inherited = other.contextAttrs.withPrefix(inherited);
-            }
-            return this;
-        }
-
-        /**
-         * Adds a context attribute to the child logger being built.
-         *
-         * @param key   the attribute name
-         * @param value the attribute value
-         * @return this builder, for chaining
-         */
-        public Builder attr(String key, Object value) {
-            attrs.add(Attr.of(key, value));
-            return this;
-        }
-
-        /**
-         * Adds a lazily-evaluated context attribute. The supplier is invoked each
-         * time a log event carrying this attribute is emitted, making it suitable
-         * for values that change over time (e.g., connection state, queue depth).
-         *
-         * @param key   the attribute name
-         * @param value a supplier that produces the attribute value at emit time
-         * @return this builder, for chaining
-         */
-        public Builder attr(String key, Supplier<?> value) {
-            attrs.add(Attr.of(key, value));
-            return this;
-        }
-
-        /**
-         * Builds and returns the child logger with all accumulated attributes
-         * as a single chain node.
-         *
-         * @return a new {@code Logger} with the added context attributes
-         */
-        public Logger build() {
-            AttrChain chain = parent.contextAttrs;
-            if (!inherited.isEmpty()) {
-                chain = chain.withPrefix(inherited);
-            }
-            if (!attrs.isEmpty()) {
-                chain = chain.with(attrs);
-            }
-            if (chain == parent.contextAttrs) {
-                return parent;
-            }
-            return new Logger(parent.name, parent.handler, chain, parent.clock);
-        }
+    default LoggerBuilder with() {
+        return LoggerDiscovery.newBuilder(this);
     }
 
     // --- Logging methods ---
-    // Each level has four variants:
-    //   info(msg)             — logs a plain message
-    //   infof(format, args)   — logs a printf-formatted message
-    //   info()                — returns a fluent Event builder
-    //   info(Consumer<Event>) — deferred: lambda is only called if level is enabled
 
     /**
      * Logs a message at TRACE level. No-op if TRACE is disabled.
+     *
      * @param msg the log message
      */
-    public void trace(String msg) {
-        if (!isEnabled(Level.TRACE)) return;
-        handler.handle(buildRecord(Level.TRACE, msg));
-    }
+    void trace(String msg);
 
     /**
      * Logs a printf-formatted message at TRACE level. No-op if TRACE is disabled.
+     *
      * @param format the format string (as in {@link String#format})
      * @param args   the format arguments
      */
-    public void tracef(String format, Object... args) {
-        if (!isEnabled(Level.TRACE)) return;
-        handler.handle(buildRecord(Level.TRACE, String.format(format, args)));
-    }
+    void tracef(String format, Object... args);
 
     /**
-     * Returns a fluent TRACE-level event builder. No-op if TRACE is disabled.
-     * @return an {@link Event} builder, or a no-op singleton
+     * Returns a fluent TRACE-level event builder. No-op singleton if TRACE is disabled.
+     *
+     * @return an {@link Event} builder for TRACE level
      */
-    public Event trace() {
-        if (!isEnabled(Level.TRACE)) return NoopEvent.INSTANCE;
-        return new EventImpl(this, Level.TRACE, clock);
-    }
+    Event trace();
 
     /**
-     * Passes an event builder to the given consumer at TRACE level.
-     * If TRACE is disabled, the consumer is never invoked — avoiding any
-     * computation of expensive messages or attributes.
+     * Passes an event builder to the consumer at TRACE level. Skipped if disabled.
      *
-     * <pre>{@code
-     * log.trace(e -> e.attr("payload", serialize(data)).log("detail"));
-     * }</pre>
-     *
-     * @param consumer the consumer that builds and logs the event
+     * @param consumer the consumer that builds and emits the event
      */
-    public void trace(Consumer<Event> consumer) {
-        if (!isEnabled(Level.TRACE)) return;
-        consumer.accept(new EventImpl(this, Level.TRACE, clock));
-    }
+    void trace(Consumer<Event> consumer);
 
     /**
      * Logs a message at DEBUG level. No-op if DEBUG is disabled.
+     *
      * @param msg the log message
      */
-    public void debug(String msg) {
-        if (!isEnabled(Level.DEBUG)) return;
-        handler.handle(buildRecord(Level.DEBUG, msg));
-    }
+    void debug(String msg);
 
     /**
      * Logs a printf-formatted message at DEBUG level. No-op if DEBUG is disabled.
+     *
      * @param format the format string (as in {@link String#format})
      * @param args   the format arguments
      */
-    public void debugf(String format, Object... args) {
-        if (!isEnabled(Level.DEBUG)) return;
-        handler.handle(buildRecord(Level.DEBUG, String.format(format, args)));
-    }
+    void debugf(String format, Object... args);
 
     /**
-     * Returns a fluent DEBUG-level event builder. No-op if DEBUG is disabled.
-     * @return an {@link Event} builder, or a no-op singleton
+     * Returns a fluent DEBUG-level event builder. No-op singleton if DEBUG is disabled.
+     *
+     * @return an {@link Event} builder for DEBUG level
      */
-    public Event debug() {
-        if (!isEnabled(Level.DEBUG)) return NoopEvent.INSTANCE;
-        return new EventImpl(this, Level.DEBUG, clock);
-    }
+    Event debug();
 
     /**
-     * Passes an event builder to the given consumer at DEBUG level.
-     * If DEBUG is disabled, the consumer is never invoked — avoiding any
-     * computation of expensive messages or attributes.
+     * Passes an event builder to the consumer at DEBUG level. Skipped if disabled.
      *
-     * <pre>{@code
-     * log.debug(e -> e.attr("key", expensiveValue()).log(expensiveMsg()));
-     * }</pre>
-     *
-     * @param consumer the consumer that builds and logs the event
+     * @param consumer the consumer that builds and emits the event
      */
-    public void debug(Consumer<Event> consumer) {
-        if (!isEnabled(Level.DEBUG)) return;
-        consumer.accept(new EventImpl(this, Level.DEBUG, clock));
-    }
+    void debug(Consumer<Event> consumer);
 
     /**
      * Logs a message at INFO level. No-op if INFO is disabled.
+     *
      * @param msg the log message
      */
-    public void info(String msg) {
-        if (!isEnabled(Level.INFO)) return;
-        handler.handle(buildRecord(Level.INFO, msg));
-    }
+    void info(String msg);
 
     /**
      * Logs a printf-formatted message at INFO level. No-op if INFO is disabled.
+     *
      * @param format the format string (as in {@link String#format})
      * @param args   the format arguments
      */
-    public void infof(String format, Object... args) {
-        if (!isEnabled(Level.INFO)) return;
-        handler.handle(buildRecord(Level.INFO, String.format(format, args)));
-    }
+    void infof(String format, Object... args);
 
     /**
-     * Returns a fluent INFO-level event builder. No-op if INFO is disabled.
-     * @return an {@link Event} builder, or a no-op singleton
+     * Returns a fluent INFO-level event builder. No-op singleton if INFO is disabled.
+     *
+     * @return an {@link Event} builder for INFO level
      */
-    public Event info() {
-        if (!isEnabled(Level.INFO)) return NoopEvent.INSTANCE;
-        return new EventImpl(this, Level.INFO, clock);
-    }
+    Event info();
 
     /**
-     * Passes an event builder to the given consumer at INFO level.
-     * If INFO is disabled, the consumer is never invoked — avoiding any
-     * computation of expensive messages or attributes.
+     * Passes an event builder to the consumer at INFO level. Skipped if disabled.
      *
-     * <pre>{@code
-     * log.info(e -> e.attr("stats", computeStats()).log("report"));
-     * }</pre>
-     *
-     * @param consumer the consumer that builds and logs the event
+     * @param consumer the consumer that builds and emits the event
      */
-    public void info(Consumer<Event> consumer) {
-        if (!isEnabled(Level.INFO)) return;
-        consumer.accept(new EventImpl(this, Level.INFO, clock));
-    }
+    void info(Consumer<Event> consumer);
 
     /**
      * Logs a message at WARN level. No-op if WARN is disabled.
+     *
      * @param msg the log message
      */
-    public void warn(String msg) {
-        if (!isEnabled(Level.WARN)) return;
-        handler.handle(buildRecord(Level.WARN, msg));
-    }
+    void warn(String msg);
 
     /**
      * Logs a printf-formatted message at WARN level. No-op if WARN is disabled.
+     *
      * @param format the format string (as in {@link String#format})
      * @param args   the format arguments
      */
-    public void warnf(String format, Object... args) {
-        if (!isEnabled(Level.WARN)) return;
-        handler.handle(buildRecord(Level.WARN, String.format(format, args)));
-    }
+    void warnf(String format, Object... args);
 
     /**
-     * Returns a fluent WARN-level event builder. No-op if WARN is disabled.
-     * @return an {@link Event} builder, or a no-op singleton
+     * Returns a fluent WARN-level event builder. No-op singleton if WARN is disabled.
+     *
+     * @return an {@link Event} builder for WARN level
      */
-    public Event warn() {
-        if (!isEnabled(Level.WARN)) return NoopEvent.INSTANCE;
-        return new EventImpl(this, Level.WARN, clock);
-    }
+    Event warn();
 
     /**
-     * Passes an event builder to the given consumer at WARN level.
-     * If WARN is disabled, the consumer is never invoked — avoiding any
-     * computation of expensive messages or attributes.
+     * Passes an event builder to the consumer at WARN level. Skipped if disabled.
      *
-     * <pre>{@code
-     * log.warn(e -> e.attr("metric", computeMetric()).log("threshold exceeded"));
-     * }</pre>
-     *
-     * @param consumer the consumer that builds and logs the event
+     * @param consumer the consumer that builds and emits the event
      */
-    public void warn(Consumer<Event> consumer) {
-        if (!isEnabled(Level.WARN)) return;
-        consumer.accept(new EventImpl(this, Level.WARN, clock));
-    }
+    void warn(Consumer<Event> consumer);
 
     /**
      * Logs a message at ERROR level. No-op if ERROR is disabled.
+     *
      * @param msg the log message
      */
-    public void error(String msg) {
-        if (!isEnabled(Level.ERROR)) return;
-        handler.handle(buildRecord(Level.ERROR, msg));
-    }
+    void error(String msg);
 
     /**
      * Logs a printf-formatted message at ERROR level. No-op if ERROR is disabled.
+     *
      * @param format the format string (as in {@link String#format})
      * @param args   the format arguments
      */
-    public void errorf(String format, Object... args) {
-        if (!isEnabled(Level.ERROR)) return;
-        handler.handle(buildRecord(Level.ERROR, String.format(format, args)));
-    }
+    void errorf(String format, Object... args);
 
     /**
-     * Returns a fluent ERROR-level event builder. No-op if ERROR is disabled.
-     * @return an {@link Event} builder, or a no-op singleton
+     * Returns a fluent ERROR-level event builder. No-op singleton if ERROR is disabled.
+     *
+     * @return an {@link Event} builder for ERROR level
      */
-    public Event error() {
-        if (!isEnabled(Level.ERROR)) return NoopEvent.INSTANCE;
-        return new EventImpl(this, Level.ERROR, clock);
-    }
+    Event error();
 
     /**
-     * Passes an event builder to the given consumer at ERROR level.
-     * If ERROR is disabled, the consumer is never invoked — avoiding any
-     * computation of expensive messages or attributes.
+     * Passes an event builder to the consumer at ERROR level. Skipped if disabled.
      *
-     * <pre>{@code
-     * log.error(e -> e.exception(ex).attr("ctx", gatherContext()).log("failure"));
-     * }</pre>
-     *
-     * @param consumer the consumer that builds and logs the event
+     * @param consumer the consumer that builds and emits the event
      */
-    public void error(Consumer<Event> consumer) {
-        if (!isEnabled(Level.ERROR)) return;
-        consumer.accept(new EventImpl(this, Level.ERROR, clock));
-    }
+    void error(Consumer<Event> consumer);
 
-    private boolean isEnabled(Level level) {
-        return handler.isEnabled(name, level);
-    }
-
-    // --- Package-private helpers for EventImpl ---
-
-    String name() {
-        return name;
-    }
-
-    Handler handler() {
-        return handler;
-    }
-
-    Iterable<Attr> mergeAttrs(List<Attr> eventAttrs) {
-        if (eventAttrs == null || eventAttrs.isEmpty()) {
-            return contextAttrs;
-        }
-        if (contextAttrs.isEmpty()) {
-            return eventAttrs;
-        }
-        // Create a child chain node with the event attrs, backed by context chain
-        return contextAttrs.with(eventAttrs);
-    }
-
-    // --- Private helpers ---
-
-    private static final String FQCN = Logger.class.getName();
-
-    private LogRecord buildRecord(Level level, String msg) {
-        return new LogRecord(name, level, msg, contextAttrs, null, clock.instant(), null, FQCN);
-    }
 }

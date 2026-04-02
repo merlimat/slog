@@ -13,10 +13,15 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.github.merlimat.slog;
+package io.github.merlimat.slog.impl;
 
+import io.github.merlimat.slog.Event;
 import java.util.function.Supplier;
 
+/**
+ * Singleton no-op {@link Event} returned when the log level is disabled.
+ * All methods are no-ops, ensuring zero overhead on the disabled path.
+ */
 enum NoopEvent implements Event {
     INSTANCE;
 

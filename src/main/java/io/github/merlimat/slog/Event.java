@@ -129,7 +129,7 @@ public interface Event {
 
     /**
      * Emits the log event with the given message. This is the terminal operation
-     * that sends the assembled record to the {@link Handler}.
+     * that sends the assembled record to the logging backend.
      *
      * @param msg the log message
      */

@@ -13,8 +13,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.github.merlimat.slog;
+package io.github.merlimat.slog.impl;
 
+import io.github.merlimat.slog.Event;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -22,17 +23,17 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Supplier;
 
-class EventImpl implements Event {
+final class EventImpl implements Event {
     private static final String FQCN = EventImpl.class.getName();
 
-    private final Logger logger;
+    private final BaseLogger logger;
     private final Level level;
     private final Clock clock;
     private List<Attr> attrs;
     private Throwable throwable;
     private Instant startTime;
 
-    EventImpl(Logger logger, Level level, Clock clock) {
+    EventImpl(BaseLogger logger, Level level, Clock clock) {
         this.logger = logger;
         this.level = level;
         this.clock = clock;
@@ -130,6 +131,6 @@ class EventImpl implements Event {
                 duration,
                 FQCN
         );
-        logger.handler().handle(record);
+        logger.emit(record);
     }
 }

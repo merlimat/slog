@@ -13,49 +13,49 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.github.merlimat.slog.handler;
+package io.github.merlimat.slog.impl;
 
-import io.github.merlimat.slog.Attr;
-import io.github.merlimat.slog.Handler;
-import io.github.merlimat.slog.Level;
-import io.github.merlimat.slog.LogRecord;
-import java.util.concurrent.ConcurrentHashMap;
+import io.github.merlimat.slog.Logger;
+import java.time.Clock;
+
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.ThreadContext;
 import org.apache.logging.log4j.spi.ExtendedLogger;
 
 /**
- * {@link Handler} implementation that delegates to Log4j2.
- *
- * <p>Structured attributes are placed into the Log4j2 {@link ThreadContext}
- * for the duration of each log call. When using {@code JsonLayout} with
- * {@code properties="true"}, each attribute appears as an individual field
- * inside the {@code contextMap} JSON object.
- *
- * <p>This handler is selected automatically when {@code org.apache.logging.log4j.LogManager}
- * is present on the classpath.
+ * Logger implementation bound directly to a Log4j2 {@link ExtendedLogger},
+ * eliminating handler indirection on every call.
  */
-public class Log4j2Handler implements Handler {
-    /** Creates a new Log4j2 handler. */
-    public Log4j2Handler() {}
+final class Log4j2Logger extends BaseLogger {
+    private final ExtendedLogger log4j;
 
-    private final ConcurrentHashMap<String, ExtendedLogger> loggers = new ConcurrentHashMap<>();
+    Log4j2Logger(String name, AttrChain contextAttrs, Clock clock) {
+        super(name, contextAttrs, clock);
+        this.log4j = (ExtendedLogger) LogManager.getLogger(name);
+    }
 
-    @Override
-    public boolean isEnabled(String loggerName, Level level) {
-        ExtendedLogger logger = getLogger(loggerName);
-        return switch (level) {
-            case TRACE -> logger.isTraceEnabled();
-            case DEBUG -> logger.isDebugEnabled();
-            case INFO -> logger.isInfoEnabled();
-            case WARN -> logger.isWarnEnabled();
-            case ERROR -> logger.isErrorEnabled();
-        };
+    private Log4j2Logger(String name, ExtendedLogger log4j, AttrChain contextAttrs, Clock clock) {
+        super(name, contextAttrs, clock);
+        this.log4j = log4j;
     }
 
     @Override
-    public void handle(LogRecord record) {
-        ExtendedLogger logger = getLogger(record.loggerName());
+    protected boolean isTraceEnabled() { return log4j.isTraceEnabled(); }
+
+    @Override
+    protected boolean isDebugEnabled() { return log4j.isDebugEnabled(); }
+
+    @Override
+    protected boolean isInfoEnabled() { return log4j.isInfoEnabled(); }
+
+    @Override
+    protected boolean isWarnEnabled() { return log4j.isWarnEnabled(); }
+
+    @Override
+    protected boolean isErrorEnabled() { return log4j.isErrorEnabled(); }
+
+    @Override
+    protected void emit(LogRecord record) {
         var saved = ThreadContext.getImmutableContext();
         try {
             for (Attr attr : record.attrs()) {
@@ -66,9 +66,8 @@ public class Log4j2Handler implements Handler {
             }
 
             org.apache.logging.log4j.Level log4jLevel = toLog4j2Level(record.level());
-            org.apache.logging.log4j.message.Message message =
-                    logger.getMessageFactory().newMessage(record.message());
-            logger.logMessage(record.callerFqcn(), log4jLevel, null, message, record.throwable());
+            var message = log4j.getMessageFactory().newMessage(record.message());
+            log4j.logMessage(record.callerFqcn(), log4jLevel, null, message, record.throwable());
         } finally {
             ThreadContext.clearMap();
             if (!saved.isEmpty()) {
@@ -77,8 +76,9 @@ public class Log4j2Handler implements Handler {
         }
     }
 
-    private ExtendedLogger getLogger(String name) {
-        return loggers.computeIfAbsent(name, n -> (ExtendedLogger) LogManager.getLogger(n));
+    @Override
+    public Logger derive(AttrChain contextAttrs) {
+        return new Log4j2Logger(name(), log4j, contextAttrs, clock);
     }
 
     private static org.apache.logging.log4j.Level toLog4j2Level(Level level) {

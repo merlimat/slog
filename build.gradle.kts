@@ -48,7 +48,7 @@ tasks.register("benchmark") {
 }
 
 tasks.javadoc {
-    exclude("io/github/merlimat/slog/handler/**")
+    exclude("io/github/merlimat/slog/impl/**")
 }
 
 tasks.test {

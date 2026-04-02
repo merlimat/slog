@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package io.github.merlimat.slog;
+package io.github.merlimat.slog.impl;
 
 import java.util.function.Supplier;
 
@@ -21,13 +21,14 @@ import java.util.function.Supplier;
  * A key-value pair representing a single structured logging attribute.
  *
  * <p>Attrs are the fundamental unit of structured data in slog. They are attached
- * to log events either as context on a {@link Logger} (via {@link Logger#with}) or
- * per-event (via {@link Event#attr}).
+ * to log events either as context on a {@link io.github.merlimat.slog.Logger}
+ * (via {@link io.github.merlimat.slog.Logger#with}) or per-event
+ * (via {@link io.github.merlimat.slog.Event#attr}).
  *
  * @param key   the attribute name
  * @param value the attribute value, may be {@code null}
  */
-public record Attr(String key, Object value) {
+record Attr(String key, Object value) {
 
     /**
      * Creates a new attribute with the given key and value.
