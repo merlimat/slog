@@ -15,6 +15,8 @@
  */
 package io.github.merlimat.slog;
 
+import java.util.function.Supplier;
+
 /**
  * A key-value pair representing a single structured logging attribute.
  *
@@ -44,6 +46,7 @@ public record Attr(String key, Object value) {
      * @return the string representation of the value, or {@code null} if the value is {@code null}
      */
     public String valueAsString() {
-        return value == null ? null : String.valueOf(value);
+        Object v = value instanceof Supplier<?> s ? s.get() : value;
+        return v == null ? null : String.valueOf(v);
     }
 }

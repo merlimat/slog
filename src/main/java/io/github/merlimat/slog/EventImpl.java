@@ -20,6 +20,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Supplier;
 
 class EventImpl implements Event {
     private static final String FQCN = EventImpl.class.getName();
@@ -72,6 +73,11 @@ class EventImpl implements Event {
     }
 
     @Override
+    public Event attr(String key, Supplier<?> value) {
+        return attr(key, (Object) value);
+    }
+
+    @Override
     public Event exception(Throwable t) {
         if (t != null) {
             this.throwable = t;
@@ -96,6 +102,11 @@ class EventImpl implements Event {
     @Override
     public void log(String msg) {
         emit(msg);
+    }
+
+    @Override
+    public void log(Supplier<String> msgSupplier) {
+        emit(msgSupplier.get());
     }
 
     @Override

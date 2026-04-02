@@ -15,6 +15,8 @@
  */
 package io.github.merlimat.slog;
 
+import java.util.function.Supplier;
+
 /**
  * A fluent builder for constructing a structured log event.
  *
@@ -88,6 +90,17 @@ public interface Event {
     Event attr(String key, boolean value);
 
     /**
+     * Adds a lazily-evaluated attribute. The supplier is invoked only when the
+     * event is actually emitted, making it suitable for values that are expensive
+     * to compute.
+     *
+     * @param key   the attribute name
+     * @param value a supplier that produces the attribute value at emit time
+     * @return this event, for chaining
+     */
+    Event attr(String key, Supplier<?> value);
+
+    /**
      * Attaches an exception to this event, including the full stack trace.
      * No-op if {@code t} is {@code null}.
      *
@@ -121,6 +134,15 @@ public interface Event {
      * @param msg the log message
      */
     void log(String msg);
+
+    /**
+     * Emits the log event with a lazily-evaluated message. The supplier is invoked
+     * only when the level is enabled, making it suitable for messages that are
+     * expensive to construct.
+     *
+     * @param msgSupplier a supplier that produces the log message
+     */
+    void log(Supplier<String> msgSupplier);
 
     /**
      * Emits the log event with a formatted message using Java's printf-style

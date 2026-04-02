@@ -20,6 +20,7 @@ import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 /**
  * A structured logger that emits log records with attached key-value attributes.
@@ -161,6 +162,20 @@ public class Logger {
          * @return this builder, for chaining
          */
         public Builder attr(String key, Object value) {
+            attrs.add(Attr.of(key, value));
+            return this;
+        }
+
+        /**
+         * Adds a lazily-evaluated context attribute. The supplier is invoked each
+         * time a log event carrying this attribute is emitted, making it suitable
+         * for values that change over time (e.g., connection state, queue depth).
+         *
+         * @param key   the attribute name
+         * @param value a supplier that produces the attribute value at emit time
+         * @return this builder, for chaining
+         */
+        public Builder attr(String key, Supplier<?> value) {
             attrs.add(Attr.of(key, value));
             return this;
         }

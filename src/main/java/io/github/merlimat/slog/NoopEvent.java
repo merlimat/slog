@@ -15,6 +15,8 @@
  */
 package io.github.merlimat.slog;
 
+import java.util.function.Supplier;
+
 enum NoopEvent implements Event {
     INSTANCE;
 
@@ -49,6 +51,11 @@ enum NoopEvent implements Event {
     }
 
     @Override
+    public Event attr(String key, Supplier<?> value) {
+        return this;
+    }
+
+    @Override
     public Event exception(Throwable t) {
         return this;
     }
@@ -66,6 +73,11 @@ enum NoopEvent implements Event {
     @Override
     public void log(String msg) {
         // no-op
+    }
+
+    @Override
+    public void log(Supplier<String> msgSupplier) {
+        // no-op — supplier is never invoked
     }
 
     @Override

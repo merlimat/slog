@@ -25,6 +25,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Supplier;
 import java.util.stream.StreamSupport;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -807,5 +809,110 @@ class LoggerTest {
                 .log("noop");
 
         assertEquals(0, records.size());
+    }
+
+    @Test
+    void supplierAttrResolvedAtEmitTime() {
+        Logger log = Logger.get("test", handler);
+        AtomicInteger counter = new AtomicInteger(0);
+        Supplier<String> supplier = () -> "value-" + counter.incrementAndGet();
+
+        log.info().attr("key", supplier).log("msg");
+
+        assertEquals(1, records.size());
+        List<Attr> a = attrs(records.get(0));
+        assertEquals(1, a.size());
+        assertEquals("key", a.get(0).key());
+        assertEquals("value-1", a.get(0).valueAsString());
+    }
+
+    @Test
+    void supplierAttrNotInvokedWhenDisabled() {
+        Logger log = Logger.get("test", handler);
+        AtomicBoolean invoked = new AtomicBoolean(false);
+        Supplier<String> supplier = () -> {
+            invoked.set(true);
+            return "expensive";
+        };
+
+        // DEBUG is disabled in this test setup
+        log.debug().attr("key", supplier).log("noop");
+
+        assertFalse(invoked.get());
+        assertEquals(0, records.size());
+    }
+
+    @Test
+    void supplierMessageResolvedAtEmitTime() {
+        Logger log = Logger.get("test", handler);
+        AtomicInteger counter = new AtomicInteger(0);
+
+        log.info().attr("op", "test").log(() -> "msg-" + counter.incrementAndGet());
+
+        assertEquals(1, records.size());
+        assertEquals("msg-1", records.get(0).message());
+    }
+
+    @Test
+    void supplierMessageNotInvokedWhenDisabled() {
+        Logger log = Logger.get("test", handler);
+        AtomicBoolean invoked = new AtomicBoolean(false);
+
+        log.debug().log(() -> {
+            invoked.set(true);
+            return "expensive";
+        });
+
+        assertFalse(invoked.get());
+        assertEquals(0, records.size());
+    }
+
+    @Test
+    void supplierContextAttrOnLogger() {
+        AtomicInteger counter = new AtomicInteger(0);
+        Supplier<String> supplier = () -> "state-" + counter.incrementAndGet();
+
+        Logger log = Logger.get("test", handler).with()
+                .attr("dynamic", supplier)
+                .build();
+
+        log.info("first");
+        log.info("second");
+
+        assertEquals(2, records.size());
+        // Supplier is invoked each time
+        assertEquals("state-1", attrs(records.get(0)).get(0).valueAsString());
+        assertEquals("state-2", attrs(records.get(1)).get(0).valueAsString());
+    }
+
+    @Test
+    void supplierContextAttrWithEventAttrs() {
+        AtomicInteger counter = new AtomicInteger(0);
+        Supplier<String> supplier = () -> "conn-" + counter.incrementAndGet();
+
+        Logger log = Logger.get("test", handler).with()
+                .attr("connState", supplier)
+                .build();
+
+        log.info().attr("op", "read").log("done");
+
+        assertEquals(1, records.size());
+        List<Attr> a = attrs(records.get(0));
+        assertEquals(2, a.size());
+        assertEquals("connState", a.get(0).key());
+        assertEquals("conn-1", a.get(0).valueAsString());
+        assertEquals("op", a.get(1).key());
+        assertEquals("read", a.get(1).value());
+    }
+
+    @Test
+    void supplierAttrReturningNonString() {
+        Logger log = Logger.get("test", handler);
+        AtomicInteger counter = new AtomicInteger(41);
+
+        log.info().attr("count", (Supplier<?>) counter::incrementAndGet).log("msg");
+
+        assertEquals(1, records.size());
+        assertEquals("42", attrs(records.get(0)).get(0).valueAsString());
     }
 }
