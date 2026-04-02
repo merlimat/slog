@@ -19,18 +19,26 @@ import io.github.merlimat.slog.Logger;
 import java.time.Clock;
 
 import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.core.LogEvent;
 import org.apache.logging.log4j.core.config.LoggerConfig;
-import org.apache.logging.log4j.core.impl.Log4jLogEvent;
+import org.apache.logging.log4j.core.impl.MutableLogEvent;
+import org.apache.logging.log4j.core.time.MutableInstant;
+import org.apache.logging.log4j.core.util.SystemClock;
 import org.apache.logging.log4j.message.Message;
 import org.apache.logging.log4j.util.SortedArrayStringMap;
 import org.apache.logging.log4j.util.StringMap;
 
 /**
- * Logger implementation bound directly to a Log4j2 {@link ExtendedLogger},
- * eliminating handler indirection on every call.
+ * Logger implementation bound directly to a Log4j2 core Logger,
+ * eliminating handler indirection on every call. Uses a thread-local
+ * {@link MutableLogEvent} to avoid per-call allocation.
  */
 final class Log4j2Logger extends BaseLogger {
+    private static final ThreadLocal<MutableLogEvent> THREAD_LOCAL_EVENT =
+            ThreadLocal.withInitial(MutableLogEvent::new);
+
+    private static final ThreadLocal<StringMap> THREAD_LOCAL_CTX =
+            ThreadLocal.withInitial(SortedArrayStringMap::new);
+
     private final org.apache.logging.log4j.core.Logger log4j;
 
     Log4j2Logger(String name, AttrChain contextAttrs, Clock clock) {
@@ -61,27 +69,25 @@ final class Log4j2Logger extends BaseLogger {
 
     @Override
     protected void emit(LogRecord record) {
-        org.apache.logging.log4j.Level log4jLevel = toLog4j2Level(record.level());
+        MutableLogEvent event = THREAD_LOCAL_EVENT.get();
+        event.clear();
 
-        StringMap contextData = buildContextData(record);
-        Message message = log4j.getMessageFactory().newMessage(record.message());
+        event.setLoggerName(record.loggerName());
+        event.setLoggerFqcn(record.callerFqcn());
+        event.setLevel(toLog4j2Level(record.level()));
+        event.setMessage(log4j.getMessageFactory().newMessage(record.message()));
+        event.setThrown(record.throwable());
+        event.setContextData(buildContextData(record));
+        event.setTimeMillis(clock.millis());
 
-        LogEvent event = Log4jLogEvent.newBuilder()
-                .setLoggerName(record.loggerName())
-                .setLoggerFqcn(record.callerFqcn())
-                .setLevel(log4jLevel)
-                .setMessage(message)
-                .setThrown(record.throwable())
-                .setContextData(contextData)
-                .setThreadName(Thread.currentThread().getName())
-                .build();
+        Thread currentThread = Thread.currentThread();
+        event.setThreadName(currentThread.getName());
+        // event.setThreadId(currentThread.threadId()); // Only available in java >= 19
+        event.setThreadPriority(currentThread.getPriority());
 
         LoggerConfig loggerConfig = log4j.get();
         loggerConfig.log(event);
     }
-
-    private static final ThreadLocal<StringMap> THREAD_LOCAL_CTX =
-            ThreadLocal.withInitial(SortedArrayStringMap::new);
 
     private static StringMap buildContextData(LogRecord record) {
         if (!record.hasContext()) {
