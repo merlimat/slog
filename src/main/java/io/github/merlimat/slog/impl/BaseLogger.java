@@ -19,7 +19,6 @@ import io.github.merlimat.slog.Event;
 import io.github.merlimat.slog.Logger;
 import java.time.Clock;
 import java.time.Duration;
-import java.util.List;
 import java.util.function.Consumer;
 
 /**
@@ -60,13 +59,14 @@ abstract class BaseLogger implements Logger {
     protected abstract boolean isErrorEnabled();
 
     protected abstract void emit(String loggerName, Level level, String message,
-                                   Iterable<Attr> attrs, Throwable throwable,
-                                   Duration duration, String callerFqcn);
+                                   AttrChain contextAttrs,
+                                   String[] eventKeys, Object[] eventValues, int eventAttrCount,
+                                   Throwable throwable, Duration duration, String callerFqcn);
 
     abstract Logger derive(AttrChain contextAttrs);
 
-    static boolean hasContext(Iterable<Attr> attrs, Duration duration) {
-        return (attrs != null && attrs != AttrChain.EMPTY) || duration != null;
+    static boolean hasContext(AttrChain contextAttrs, int eventAttrCount, Duration duration) {
+        return !contextAttrs.isEmpty() || eventAttrCount > 0 || duration != null;
     }
 
     // --- Logging methods ---
@@ -74,13 +74,13 @@ abstract class BaseLogger implements Logger {
     @Override
     public void trace(String msg) {
         if (!isTraceEnabled()) return;
-        emit(name, Level.TRACE, msg, contextAttrs, null, null, FQCN);
+        emit(name, Level.TRACE, msg, contextAttrs, null, null, 0, null, null, FQCN);
     }
 
     @Override
     public void tracef(String format, Object... args) {
         if (!isTraceEnabled()) return;
-        emit(name, Level.TRACE, String.format(format, args), contextAttrs, null, null, FQCN);
+        emit(name, Level.TRACE, String.format(format, args), contextAttrs, null, null, 0, null, null, FQCN);
     }
 
     @Override
@@ -98,13 +98,13 @@ abstract class BaseLogger implements Logger {
     @Override
     public void debug(String msg) {
         if (!isDebugEnabled()) return;
-        emit(name, Level.DEBUG, msg, contextAttrs, null, null, FQCN);
+        emit(name, Level.DEBUG, msg, contextAttrs, null, null, 0, null, null, FQCN);
     }
 
     @Override
     public void debugf(String format, Object... args) {
         if (!isDebugEnabled()) return;
-        emit(name, Level.DEBUG, String.format(format, args), contextAttrs, null, null, FQCN);
+        emit(name, Level.DEBUG, String.format(format, args), contextAttrs, null, null, 0, null, null, FQCN);
     }
 
     @Override
@@ -122,13 +122,13 @@ abstract class BaseLogger implements Logger {
     @Override
     public void info(String msg) {
         if (!isInfoEnabled()) return;
-        emit(name, Level.INFO, msg, contextAttrs, null, null, FQCN);
+        emit(name, Level.INFO, msg, contextAttrs, null, null, 0, null, null, FQCN);
     }
 
     @Override
     public void infof(String format, Object... args) {
         if (!isInfoEnabled()) return;
-        emit(name, Level.INFO, String.format(format, args), contextAttrs, null, null, FQCN);
+        emit(name, Level.INFO, String.format(format, args), contextAttrs, null, null, 0, null, null, FQCN);
     }
 
     @Override
@@ -146,13 +146,13 @@ abstract class BaseLogger implements Logger {
     @Override
     public void warn(String msg) {
         if (!isWarnEnabled()) return;
-        emit(name, Level.WARN, msg, contextAttrs, null, null, FQCN);
+        emit(name, Level.WARN, msg, contextAttrs, null, null, 0, null, null, FQCN);
     }
 
     @Override
     public void warnf(String format, Object... args) {
         if (!isWarnEnabled()) return;
-        emit(name, Level.WARN, String.format(format, args), contextAttrs, null, null, FQCN);
+        emit(name, Level.WARN, String.format(format, args), contextAttrs, null, null, 0, null, null, FQCN);
     }
 
     @Override
@@ -170,13 +170,13 @@ abstract class BaseLogger implements Logger {
     @Override
     public void error(String msg) {
         if (!isErrorEnabled()) return;
-        emit(name, Level.ERROR, msg, contextAttrs, null, null, FQCN);
+        emit(name, Level.ERROR, msg, contextAttrs, null, null, 0, null, null, FQCN);
     }
 
     @Override
     public void errorf(String format, Object... args) {
         if (!isErrorEnabled()) return;
-        emit(name, Level.ERROR, String.format(format, args), contextAttrs, null, null, FQCN);
+        emit(name, Level.ERROR, String.format(format, args), contextAttrs, null, null, 0, null, null, FQCN);
     }
 
     @Override
@@ -189,18 +189,6 @@ abstract class BaseLogger implements Logger {
     public void error(Consumer<Event> consumer) {
         if (!isErrorEnabled()) return;
         consumer.accept(new EventImpl(this, Level.ERROR, clock));
-    }
-
-    // --- Internal helpers ---
-
-    Iterable<Attr> mergeAttrs(List<Attr> eventAttrs) {
-        if (eventAttrs == null || eventAttrs.isEmpty()) {
-            return contextAttrs;
-        }
-        if (contextAttrs.isEmpty()) {
-            return eventAttrs;
-        }
-        return contextAttrs.with(eventAttrs);
     }
 
 }

@@ -19,17 +19,20 @@ import io.github.merlimat.slog.Event;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Arrays;
 import java.util.function.Supplier;
 
 final class EventImpl implements Event {
-    private static final String FQCN = EventImpl.class.getName();
+    static final String FQCN = EventImpl.class.getName();
+
+    private static final int INITIAL_CAPACITY = 4;
 
     private final BaseLogger logger;
     private final Level level;
     private final Clock clock;
-    private List<Attr> attrs;
+    private String[] attrKeys;
+    private Object[] attrValues;
+    private int attrCount;
     private Throwable throwable;
     private Instant startTime;
 
@@ -41,10 +44,17 @@ final class EventImpl implements Event {
 
     @Override
     public Event attr(String key, Object value) {
-        if (attrs == null) {
-            attrs = new ArrayList<>();
+        if (attrKeys == null) {
+            attrKeys = new String[INITIAL_CAPACITY];
+            attrValues = new Object[INITIAL_CAPACITY];
+        } else if (attrCount == attrKeys.length) {
+            int newCap = attrKeys.length * 2;
+            attrKeys = Arrays.copyOf(attrKeys, newCap);
+            attrValues = Arrays.copyOf(attrValues, newCap);
         }
-        attrs.add(Attr.of(key, value));
+        attrKeys[attrCount] = key;
+        attrValues[attrCount] = value;
+        attrCount++;
         return this;
     }
 
@@ -120,7 +130,9 @@ final class EventImpl implements Event {
                 ? Duration.between(startTime, clock.instant())
                 : null;
 
-        Iterable<Attr> merged = logger.mergeAttrs(attrs);
-        logger.emit(logger.name(), level, msg, merged, throwable, duration, FQCN);
+        logger.emit(logger.name(), level, msg,
+                logger.contextAttrs(),
+                attrKeys, attrValues, attrCount,
+                throwable, duration, FQCN);
     }
 }

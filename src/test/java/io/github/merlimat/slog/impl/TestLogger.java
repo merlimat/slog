@@ -18,8 +18,10 @@ package io.github.merlimat.slog.impl;
 import io.github.merlimat.slog.Logger;
 import java.time.Clock;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Supplier;
 
 /**
  * Test-only logger that captures emitted records into a sink list.
@@ -51,8 +53,18 @@ final class TestLogger extends BaseLogger {
 
     @Override
     protected void emit(String loggerName, Level level, String message,
-                        Iterable<Attr> attrs, Throwable throwable,
-                        Duration duration, String callerFqcn) {
+                        AttrChain contextAttrs,
+                        String[] eventKeys, Object[] eventValues, int eventAttrCount,
+                        Throwable throwable, Duration duration, String callerFqcn) {
+        // Reconstruct a snapshot list of Attr for test assertions
+        var attrs = new ArrayList<Attr>();
+        for (Attr attr : contextAttrs) {
+            attrs.add(attr);
+        }
+        for (int i = 0; i < eventAttrCount; i++) {
+            Object v = eventValues[i];
+            attrs.add(new Attr(eventKeys[i], v instanceof Supplier<?> s ? s.get() : v));
+        }
         sink.add(new LogRecord(loggerName, level, message, attrs, throwable, duration, callerFqcn));
     }
 

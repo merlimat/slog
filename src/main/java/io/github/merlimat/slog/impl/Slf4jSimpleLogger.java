@@ -18,6 +18,7 @@ package io.github.merlimat.slog.impl;
 import io.github.merlimat.slog.Logger;
 import java.time.Clock;
 import java.time.Duration;
+import java.util.function.Supplier;
 import org.slf4j.LoggerFactory;
 
 /**
@@ -54,9 +55,12 @@ final class Slf4jSimpleLogger extends BaseLogger {
 
     @Override
     protected void emit(String loggerName, Level level, String message,
-                        Iterable<Attr> attrs, Throwable throwable,
-                        Duration duration, String callerFqcn) {
-        String msg = hasContext(attrs, duration) ? formatMessage(message, attrs, duration) : message;
+                        AttrChain contextAttrs,
+                        String[] eventKeys, Object[] eventValues, int eventAttrCount,
+                        Throwable throwable, Duration duration, String callerFqcn) {
+        String msg = hasContext(contextAttrs, eventAttrCount, duration)
+                ? formatMessage(message, contextAttrs, eventKeys, eventValues, eventAttrCount, duration)
+                : message;
         switch (level) {
             case TRACE -> { if (throwable != null) slf4j.trace(msg, throwable); else slf4j.trace(msg); }
             case DEBUG -> { if (throwable != null) slf4j.debug(msg, throwable); else slf4j.debug(msg); }
@@ -71,11 +75,18 @@ final class Slf4jSimpleLogger extends BaseLogger {
         return new Slf4jSimpleLogger(name(), slf4j, contextAttrs, clock);
     }
 
-    private static String formatMessage(String message, Iterable<Attr> attrs, Duration duration) {
+    private static String formatMessage(String message, AttrChain contextAttrs,
+                                        String[] eventKeys, Object[] eventValues,
+                                        int eventAttrCount, Duration duration) {
         var sb = new StringBuilder();
         sb.append(message);
-        for (Attr attr : attrs) {
+        for (Attr attr : contextAttrs) {
             sb.append(' ').append(attr.key()).append('=').append(attr.valueAsString());
+        }
+        for (int i = 0; i < eventAttrCount; i++) {
+            Object v = eventValues[i];
+            Object resolved = v instanceof Supplier<?> s ? s.get() : v;
+            sb.append(' ').append(eventKeys[i]).append('=').append(resolved);
         }
         if (duration != null) {
             sb.append(" durationMs=").append(duration.toMillis());

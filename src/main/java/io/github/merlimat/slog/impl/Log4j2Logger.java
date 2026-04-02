@@ -20,6 +20,7 @@ import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
 import java.time.Clock;
 import java.time.Duration;
+import java.util.function.Supplier;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.core.LoggerContext;
@@ -112,8 +113,9 @@ final class Log4j2Logger extends BaseLogger {
 
     @Override
     protected void emit(String loggerName, Level level, String message,
-                        Iterable<Attr> attrs, Throwable throwable,
-                        Duration duration, String callerFqcn) {
+                        AttrChain contextAttrs,
+                        String[] eventKeys, Object[] eventValues, int eventAttrCount,
+                        Throwable throwable, Duration duration, String callerFqcn) {
         MutableLogEvent event = THREAD_LOCAL_EVENT.get();
         event.clear();
 
@@ -122,7 +124,7 @@ final class Log4j2Logger extends BaseLogger {
         event.setLevel(toLog4j2Level(level));
         event.setMessage(log4j.getMessageFactory().newMessage(message));
         event.setThrown(throwable);
-        event.setContextData(buildContextData(attrs, duration));
+        event.setContextData(buildContextData(contextAttrs, eventKeys, eventValues, eventAttrCount, duration));
         event.setTimeMillis(clock.millis());
 
         Thread currentThread = Thread.currentThread();
@@ -134,15 +136,21 @@ final class Log4j2Logger extends BaseLogger {
         loggerConfig.log(event);
     }
 
-    private static StringMap buildContextData(Iterable<Attr> attrs, Duration duration) {
-        if (!hasContext(attrs, duration)) {
+    private static StringMap buildContextData(AttrChain contextAttrs,
+                                              String[] eventKeys, Object[] eventValues,
+                                              int eventAttrCount, Duration duration) {
+        if (!hasContext(contextAttrs, eventAttrCount, duration)) {
             return null;
         }
 
         var map = THREAD_LOCAL_CTX.get();
         map.clear();
-        for (Attr attr : attrs) {
+        for (Attr attr : contextAttrs) {
             map.putValue(attr.key(), attr.value());
+        }
+        for (int i = 0; i < eventAttrCount; i++) {
+            Object v = eventValues[i];
+            map.putValue(eventKeys[i], v instanceof Supplier<?> s ? s.get() : v);
         }
         if (duration != null) {
             map.putValue("durationMs", duration.toMillis());

@@ -19,6 +19,7 @@ import io.github.merlimat.slog.Logger;
 
 import java.time.Clock;
 import java.time.Duration;
+import java.util.function.Supplier;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 
@@ -56,10 +57,12 @@ final class Slf4jLogger extends BaseLogger {
 
     @Override
     protected void emit(String loggerName, Level level, String message,
-                        Iterable<Attr> attrs, Throwable throwable,
-                        Duration duration, String callerFqcn) {
-        if (hasContext(attrs, duration)) {
-            emitWithMdc(level, message, attrs, throwable, duration);
+                        AttrChain contextAttrs,
+                        String[] eventKeys, Object[] eventValues, int eventAttrCount,
+                        Throwable throwable, Duration duration, String callerFqcn) {
+        if (hasContext(contextAttrs, eventAttrCount, duration)) {
+            emitWithMdc(level, message, contextAttrs, eventKeys, eventValues, eventAttrCount,
+                    throwable, duration);
         } else {
             emitPlain(level, message, throwable);
         }
@@ -75,12 +78,18 @@ final class Slf4jLogger extends BaseLogger {
         }
     }
 
-    private void emitWithMdc(Level level, String msg, Iterable<Attr> attrs,
+    private void emitWithMdc(Level level, String msg, AttrChain contextAttrs,
+                             String[] eventKeys, Object[] eventValues, int eventAttrCount,
                              Throwable throwable, Duration duration) {
         var saved = MDC.getCopyOfContextMap();
         try {
-            for (Attr attr : attrs) {
+            for (Attr attr : contextAttrs) {
                 MDC.put(attr.key(), attr.valueAsString());
+            }
+            for (int i = 0; i < eventAttrCount; i++) {
+                Object v = eventValues[i];
+                Object resolved = v instanceof Supplier<?> s ? s.get() : v;
+                MDC.put(eventKeys[i], resolved == null ? null : String.valueOf(resolved));
             }
             if (duration != null) {
                 MDC.put("durationMs", String.valueOf(duration.toMillis()));
