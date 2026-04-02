@@ -19,7 +19,23 @@ A lightweight structured logging library for Java, inspired by Go's [log/slog](h
 
 - [Javadoc](https://merlimat.github.io/slog/javadoc/)
 
-## Requirements
+## Installation
+
+**Gradle**
+```kotlin
+implementation("io.github.merlimat.slog:slog:0.9.4")
+```
+
+**Maven**
+```xml
+<dependency>
+    <groupId>io.github.merlimat.slog</groupId>
+    <artifactId>slog</artifactId>
+    <version>0.9.4</version>
+</dependency>
+```
+
+### Requirements
 
 - Java 17+
 - At least one of the following logging backends on the classpath:
