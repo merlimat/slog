@@ -16,23 +16,42 @@
 package io.github.merlimat.slog.impl;
 
 import io.github.merlimat.slog.Logger;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.VarHandle;
 import java.time.Clock;
 
 import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.core.LoggerContext;
 import org.apache.logging.log4j.core.config.LoggerConfig;
 import org.apache.logging.log4j.core.impl.MutableLogEvent;
-import org.apache.logging.log4j.core.time.MutableInstant;
-import org.apache.logging.log4j.core.util.SystemClock;
-import org.apache.logging.log4j.message.Message;
 import org.apache.logging.log4j.util.SortedArrayStringMap;
 import org.apache.logging.log4j.util.StringMap;
 
 /**
  * Logger implementation bound directly to a Log4j2 core Logger,
  * eliminating handler indirection on every call. Uses a thread-local
- * {@link MutableLogEvent} to avoid per-call allocation.
+ * {@link MutableLogEvent} to avoid per-call allocation, and a
+ * generation-counter scheme to cache the effective log level without
+ * querying the Log4j2 hierarchy on every call.
  */
 final class Log4j2Logger extends BaseLogger {
+    /** Bumped once by a single static listener whenever Log4j2's configuration changes. */
+    private static int generation;
+
+    private static final VarHandle GENERATION;
+
+    static {
+        try {
+            GENERATION = MethodHandles.lookup()
+                    .findStaticVarHandle(Log4j2Logger.class, "generation", int.class);
+        } catch (ReflectiveOperationException e) {
+            throw new ExceptionInInitializerError(e);
+        }
+        ((LoggerContext) LogManager.getContext(false))
+                .addPropertyChangeListener(evt ->
+                        GENERATION.setOpaque((int) GENERATION.getOpaque() + 1));
+    }
+
     private static final ThreadLocal<MutableLogEvent> THREAD_LOCAL_EVENT =
             ThreadLocal.withInitial(MutableLogEvent::new);
 
@@ -40,6 +59,10 @@ final class Log4j2Logger extends BaseLogger {
             ThreadLocal.withInitial(SortedArrayStringMap::new);
 
     private final org.apache.logging.log4j.core.Logger log4j;
+
+    /** Cached effective intLevel — refreshed lazily when GENERATION changes. */
+    private int cachedIntLevel;
+    private int cachedGeneration = -1; // force first refresh
 
     Log4j2Logger(String name, AttrChain contextAttrs, Clock clock) {
         super(name, contextAttrs, clock);
@@ -52,20 +75,39 @@ final class Log4j2Logger extends BaseLogger {
         this.log4j = log4j;
     }
 
-    @Override
-    protected boolean isTraceEnabled() { return log4j.isTraceEnabled(); }
+    private int effectiveIntLevel() {
+        int gen = (int) GENERATION.getOpaque();
+        if (gen != cachedGeneration) {
+            cachedIntLevel = log4j.getLevel().intLevel();
+            cachedGeneration = gen;
+        }
+        return cachedIntLevel;
+    }
 
     @Override
-    protected boolean isDebugEnabled() { return log4j.isDebugEnabled(); }
+    protected boolean isTraceEnabled() {
+        return org.apache.logging.log4j.Level.TRACE.intLevel() <= effectiveIntLevel();
+    }
 
     @Override
-    protected boolean isInfoEnabled() { return log4j.isInfoEnabled(); }
+    protected boolean isDebugEnabled() {
+        return org.apache.logging.log4j.Level.DEBUG.intLevel() <= effectiveIntLevel();
+    }
 
     @Override
-    protected boolean isWarnEnabled() { return log4j.isWarnEnabled(); }
+    protected boolean isInfoEnabled() {
+        return org.apache.logging.log4j.Level.INFO.intLevel() <= effectiveIntLevel();
+    }
 
     @Override
-    protected boolean isErrorEnabled() { return log4j.isErrorEnabled(); }
+    protected boolean isWarnEnabled() {
+        return org.apache.logging.log4j.Level.WARN.intLevel() <= effectiveIntLevel();
+    }
+
+    @Override
+    protected boolean isErrorEnabled() {
+        return org.apache.logging.log4j.Level.ERROR.intLevel() <= effectiveIntLevel();
+    }
 
     @Override
     protected void emit(LogRecord record) {
