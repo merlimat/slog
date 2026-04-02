@@ -55,6 +55,26 @@ final class Slf4jLogger extends BaseLogger {
 
     @Override
     protected void emit(LogRecord record) {
+        if (record.hasContext()) {
+            emitWithMdc(record);
+        } else {
+            emitPlain(record);
+        }
+    }
+
+    private void emitPlain(LogRecord record) {
+        String msg = record.message();
+        Throwable t = record.throwable();
+        switch (record.level()) {
+            case TRACE -> { if (t != null) slf4j.trace(msg, t); else slf4j.trace(msg); }
+            case DEBUG -> { if (t != null) slf4j.debug(msg, t); else slf4j.debug(msg); }
+            case INFO ->  { if (t != null) slf4j.info(msg, t);  else slf4j.info(msg);  }
+            case WARN ->  { if (t != null) slf4j.warn(msg, t);  else slf4j.warn(msg);  }
+            case ERROR -> { if (t != null) slf4j.error(msg, t); else slf4j.error(msg); }
+        }
+    }
+
+    private void emitWithMdc(LogRecord record) {
         var saved = MDC.getCopyOfContextMap();
         try {
             for (Attr attr : record.attrs()) {
@@ -63,16 +83,7 @@ final class Slf4jLogger extends BaseLogger {
             if (record.duration() != null) {
                 MDC.put("durationMs", String.valueOf(record.duration().toMillis()));
             }
-
-            String msg = record.message();
-            Throwable t = record.throwable();
-            switch (record.level()) {
-                case TRACE -> { if (t != null) slf4j.trace(msg, t); else slf4j.trace(msg); }
-                case DEBUG -> { if (t != null) slf4j.debug(msg, t); else slf4j.debug(msg); }
-                case INFO ->  { if (t != null) slf4j.info(msg, t);  else slf4j.info(msg);  }
-                case WARN ->  { if (t != null) slf4j.warn(msg, t);  else slf4j.warn(msg);  }
-                case ERROR -> { if (t != null) slf4j.error(msg, t); else slf4j.error(msg); }
-            }
+            emitPlain(record);
         } finally {
             if (saved != null) {
                 MDC.setContextMap(saved);

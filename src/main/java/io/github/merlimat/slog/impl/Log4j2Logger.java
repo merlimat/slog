@@ -18,6 +18,7 @@ package io.github.merlimat.slog.impl;
 import io.github.merlimat.slog.Logger;
 import java.time.Clock;
 
+import java.util.Map;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.ThreadContext;
 import org.apache.logging.log4j.spi.ExtendedLogger;
@@ -56,7 +57,10 @@ final class Log4j2Logger extends BaseLogger {
 
     @Override
     protected void emit(LogRecord record) {
-        var saved = ThreadContext.getImmutableContext();
+        boolean hasContext = record.hasContext();
+        Map<String, String> savedCtx =
+                ThreadContext.isEmpty() ? null : ThreadContext.getImmutableContext();
+
         try {
             for (Attr attr : record.attrs()) {
                 ThreadContext.put(attr.key(), attr.valueAsString());
@@ -69,9 +73,12 @@ final class Log4j2Logger extends BaseLogger {
             var message = log4j.getMessageFactory().newMessage(record.message());
             log4j.logMessage(record.callerFqcn(), log4jLevel, null, message, record.throwable());
         } finally {
-            ThreadContext.clearMap();
-            if (!saved.isEmpty()) {
-                ThreadContext.putAll(saved);
+            if (hasContext) {
+                ThreadContext.clearMap();
+            }
+
+            if (savedCtx != null) {
+                ThreadContext.putAll(savedCtx);
             }
         }
     }

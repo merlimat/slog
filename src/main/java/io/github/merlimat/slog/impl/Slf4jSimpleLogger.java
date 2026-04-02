@@ -53,7 +53,7 @@ final class Slf4jSimpleLogger extends BaseLogger {
 
     @Override
     protected void emit(LogRecord record) {
-        String msg = formatMessage(record);
+        String msg = record.hasContext() ? formatMessage(record) : record.message();
         Throwable t = record.throwable();
         switch (record.level()) {
             case TRACE -> { if (t != null) slf4j.trace(msg, t); else slf4j.trace(msg); }

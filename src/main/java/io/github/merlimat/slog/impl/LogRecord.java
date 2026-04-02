@@ -47,4 +47,8 @@ record LogRecord(
         Duration duration,
         String callerFqcn
 ) {
+
+    boolean hasContext() {
+        return (attrs != null && attrs != AttrChain.EMPTY) || duration != null;
+    }
 }
