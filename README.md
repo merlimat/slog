@@ -5,7 +5,7 @@ A lightweight structured logging library for Java, inspired by Go's [log/slog](h
 ## Features
 
 - **Structured key-value logging** — every log event carries typed attributes, not just a formatted string
-- **Zero overhead when disabled** — level checks happen before any object allocation; disabled levels cost a single boolean check
+- **Zero overhead when disabled** — level checks use a cached generation-counter scheme; disabled levels cost a single integer comparison with no volatile fence or framework call
 - **Immutable context propagation** — derive loggers with `logger.with()` to attach attributes that are automatically included in every subsequent log call; parent attrs are shared, never copied
 - **Cross-component context** — propagate context across component boundaries with `builder.ctx(otherLogger)`
 - **Fluent event builder** — `log.info().attr("k", "v").log("msg")` for structured events; returns a no-op singleton when the level is disabled
@@ -171,41 +171,67 @@ Null appender (measuring framework overhead, not I/O). Root logger level is INFO
 ### Disabled path (TRACE call with INFO level) — ops/μs, higher is better
 
 ```
- Log4j2 Simple       ████████████████████████████████████████████  408.9
- Log4j2 Positional   ████████████████████████████████████████████  403.7
- slog Simple         ████████████████████████████████████████      367.6
- slog Fluent         ███████████████████████████████████████       364.7
- SLF4J Simple        ███████████████████████████████████████       367.4
- SLF4J Fluent        ███████████████████████████████████████       360.4
- SLF4J Positional    ███████████████████████████████████████       361.7
+ slog Simple         ████████████████████████████████████████████  1005.4
+ slog Fluent         ████████████████████████████████████████████  1005.0
+ Log4j2 Simple       ██████████████████                            413.1
+ Log4j2 Positional   ██████████████████                            413.2
+ SLF4J Simple        ████████████████                              367.5
+ SLF4J Positional    ███████████████                               360.5
+ SLF4J Fluent        ███████████████                               359.6
 ```
 
-When the level is disabled, slog performs a single `isInfoEnabled()` boolean check
-and returns immediately — on par with calling Log4j2 or SLF4J directly. The fluent
-API returns a `NoopEvent` singleton, so `attr()` and `log()` calls are no-ops with
-zero allocation.
+When the level is disabled, slog checks a cached effective level using a
+generation-counter scheme with `VarHandle.getOpaque()` — no volatile fence,
+no call into the Log4j2 hierarchy. This makes the disabled path **2.4× faster**
+than Log4j2 and **2.8× faster** than SLF4J. The fluent API returns a `NoopEvent`
+singleton, so `attr()` and `log()` calls are no-ops with zero allocation.
 
 ### Enabled path (INFO call) — ops/μs, higher is better
 
 ```
- slog Simple         ████████████████████████████████████████████   24.3
- SLF4J Simple        ██████████████████████████                     13.9
- Log4j2 Simple       █████████████████████████                      13.6
- slog Fluent         █████████████████                               9.5
- slog Fluent+Ctx     ██████████████                                  7.8
- Log4j2 Positional   █████████████                                   7.4
- SLF4J Positional    ███████████                                     6.2
- SLF4J Fluent        ███████                                         4.1
+ slog Simple         ████████████████████████████████████████████   24.6
+ Log4j2 Simple       ██████████████████████████                     14.6
+ slog Fluent         ███████████████████████                        13.2
+ slog Fluent+Ctx     █████████████████████                          12.0
+ SLF4J Simple        ████████████████████                           11.2
+ SLF4J Positional    ████████████                                    7.1
+ Log4j2 Positional   ███████████                                     6.4
+ SLF4J Fluent        ███████                                         4.2
 ```
 
-**slog Simple** (no structured attrs) is **1.8x faster** than native Log4j2/SLF4J.
-This is achieved by building a `MutableLogEvent` directly and calling
-`LoggerConfig.log()`, completely bypassing `ThreadContext` and the
-`ContextDataInjector` pipeline.
+**slog Simple** (no structured attrs) is **1.7× faster** than native Log4j2 and
+**2.2× faster** than SLF4J. The emit path builds a `MutableLogEvent` directly and
+calls `LoggerConfig.log()`, completely bypassing `ThreadContext` and the
+`ContextDataInjector` pipeline. The event and context map are pooled in
+`ThreadLocal`s for zero allocation on the simple path.
 
-**slog Fluent** (3 structured key-value attributes) runs at 9.5 ops/μs — comparable
-to Log4j2 positional logging (7.4 ops/μs) which also carries 3 values but as
-interpolated strings rather than structured data.
+**slog Fluent** (3 structured key-value attributes) runs at **13.2 ops/μs** —
+**3.2× faster** than SLF4J's fluent API (4.2 ops/μs) and **2× faster** than
+Log4j2 positional logging (6.4 ops/μs), which also carries 3 values but as
+interpolated strings rather than structured data. Event attributes are stored
+in inline parallel arrays, avoiding `ArrayList` and per-attribute object
+allocation.
+
+### Allocation rate (enabled path) — B/op, lower is better
+
+```
+ slog Simple         ▏                                                  0
+ Log4j2 Simple       █                                                 24
+ SLF4J Simple        █                                                 24
+ Log4j2 Positional   ██                                                40
+ slog Fluent+Ctx     ██                                                40
+ SLF4J Positional    ███                                               72
+ slog Fluent         ███                                               80
+ SLF4J Fluent        ████████████████████████████████████████████     1104
+```
+
+**slog Simple** achieves **zero allocation** — the `MutableLogEvent`, message, and
+context map are all pooled in `ThreadLocal`s, so the enabled simple path produces
+no garbage at all.
+
+**slog Fluent** allocates **80 B/op** (two small arrays for event attributes plus
+autoboxing of one `int` argument), compared to **1,104 B/op** for SLF4J's fluent
+API — a **14× reduction** in garbage produced per log call.
 
 ### Running the benchmarks
 
