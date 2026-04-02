@@ -139,10 +139,10 @@ final class Log4j2Logger extends BaseLogger {
         var map = THREAD_LOCAL_CTX.get();
         map.clear();
         for (Attr attr : record.attrs()) {
-            map.putValue(attr.key(), attr.valueAsString());
+            map.putValue(attr.key(), attr.value());
         }
         if (record.duration() != null) {
-            map.putValue("durationMs", String.valueOf(record.duration().toMillis()));
+            map.putValue("durationMs", record.duration().toMillis());
         }
         return map;
     }

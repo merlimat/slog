@@ -42,12 +42,22 @@ record Attr(String key, Object value) {
     }
 
     /**
+     * Returns the resolved value, unwrapping {@link Supplier} instances if needed.
+     *
+     * @return the resolved value, or the raw value if not a {@code Supplier}
+     */
+    @Override
+    public Object value() {
+        return value instanceof Supplier<?> s ? s.get() : value;
+    }
+
+    /**
      * Returns the value as a string, using {@link String#valueOf(Object)}.
      *
      * @return the string representation of the value, or {@code null} if the value is {@code null}
      */
     public String valueAsString() {
-        Object v = value instanceof Supplier<?> s ? s.get() : value;
+        Object v = value();
         return v == null ? null : String.valueOf(v);
     }
 }
