@@ -111,6 +111,33 @@ final class EventImpl implements Event {
     }
 
     @Override
+    public Event onceEvery(int n) {
+        if (n <= 1) {
+            return this;
+        }
+        long skipped = RateLimiter.checkEvery(n);
+        if (skipped != RateLimiter.SUPPRESSED) {
+            if (skipped > 0) {
+                attr("skipped", skipped);
+            }
+            return this;
+        }
+        return NoopEvent.INSTANCE;
+    }
+
+    @Override
+    public Event onceEvery(Duration duration) {
+        long skipped = RateLimiter.checkAtMostEvery(duration.toMillis(), clock.millis());
+        if (skipped != RateLimiter.SUPPRESSED) {
+            if (skipped > 0) {
+                attr("skipped", skipped);
+            }
+            return this;
+        }
+        return NoopEvent.INSTANCE;
+    }
+
+    @Override
     public void log(String msg) {
         emit(msg);
     }

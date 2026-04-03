@@ -17,6 +17,7 @@ package io.github.merlimat.slog.impl;
 
 import io.github.merlimat.slog.Event;
 import io.github.merlimat.slog.ThrowingSupplier;
+import java.time.Duration;
 
 /**
  * Singleton no-op {@link Event} returned when the log level is disabled.
@@ -72,6 +73,16 @@ enum NoopEvent implements Event {
 
     @Override
     public Event timed() {
+        return this;
+    }
+
+    @Override
+    public Event onceEvery(int n) {
+        return this;
+    }
+
+    @Override
+    public Event onceEvery(Duration duration) {
         return this;
     }
 

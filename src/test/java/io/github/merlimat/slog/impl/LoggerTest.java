@@ -948,4 +948,146 @@ class LoggerTest {
         assertEquals("config", a.get(0).key());
         assertEquals("<error: permission denied>", a.get(0).valueAsString());
     }
+
+    // ---------------------------------------------------------------
+    // Rate limiting: every(N) and atMostEvery(n, TimeUnit)
+    // ---------------------------------------------------------------
+
+    @Test
+    void onceEveryEmitsOneInN() {
+        RateLimiter.reset();
+        Logger log = TestLogger.create("test", enabledLevels, records);
+
+        for (int i = 0; i < 20; i++) {
+            log.info().onceEvery(5).log("tick");
+        }
+
+        assertEquals(4, records.size()); // iterations 0, 5, 10, 15
+
+        // First emission has no skipped attr
+        assertEquals(0, attrs(records.get(0)).size());
+        // Subsequent emissions report 4 skipped occurrences
+        for (int i = 1; i < 4; i++) {
+            List<Attr> a = attrs(records.get(i));
+            assertEquals(1, a.size());
+            assertEquals("skipped", a.get(0).key());
+            assertEquals(4L, a.get(0).value());
+        }
+    }
+
+    @Test
+    void onceEveryOneEmitsAll() {
+        RateLimiter.reset();
+        Logger log = TestLogger.create("test", enabledLevels, records);
+
+        for (int i = 0; i < 10; i++) {
+            log.info().onceEvery(1).log("tick");
+        }
+
+        assertEquals(10, records.size());
+    }
+
+    @Test
+    void onceEveryCountFirstCallAlwaysEmits() {
+        RateLimiter.reset();
+        Logger log = TestLogger.create("test", enabledLevels, records);
+
+        log.info().onceEvery(1000).log("first");
+
+        assertEquals(1, records.size());
+        // First call has no skipped attr
+        assertEquals(0, attrs(records.get(0)).size());
+    }
+
+    @Test
+    void onceEveryOnDisabledLevelIsNoop() {
+        RateLimiter.reset();
+        Logger log = TestLogger.create("test", enabledLevels, records);
+
+        for (int i = 0; i < 20; i++) {
+            log.debug().onceEvery(1).log("should not appear");
+        }
+
+        assertEquals(0, records.size());
+    }
+
+    @Test
+    void onceEveryDurationRespectsTimeBound() {
+        RateLimiter.reset();
+        Instant start = Instant.parse("2024-01-01T00:00:00Z");
+        Clock[] clockRef = { Clock.fixed(start, ZoneOffset.UTC) };
+        Clock advancingClock = new Clock() {
+            @Override
+            public java.time.ZoneId getZone() { return ZoneOffset.UTC; }
+            @Override
+            public Clock withZone(java.time.ZoneId zone) { return this; }
+            @Override
+            public Instant instant() { return clockRef[0].instant(); }
+        };
+        Logger log = TestLogger.create("test", enabledLevels, records, advancingClock);
+
+        // All calls from same line so they share one call-site key
+        Instant[] times = {
+                start,                    // t=0     → emit (first call)
+                start.plusMillis(500),     // t=500ms → suppress (within 1s window)
+                start.plusMillis(1100),    // t=1100ms → emit (window elapsed)
+        };
+        for (Instant t : times) {
+            clockRef[0] = Clock.fixed(t, ZoneOffset.UTC);
+            log.info().onceEvery(Duration.ofSeconds(1)).log("tick");
+        }
+
+        assertEquals(2, records.size());
+        // First emission: no skipped attr
+        assertEquals(0, attrs(records.get(0)).size());
+        // Second emission: 1 call was skipped (the t=500ms call)
+        List<Attr> a1 = attrs(records.get(1));
+        assertEquals(1, a1.size());
+        assertEquals("skipped", a1.get(0).key());
+        assertEquals(1L, a1.get(0).value());
+    }
+
+    @Test
+    void onceEveryDurationFirstCallAlwaysEmits() {
+        RateLimiter.reset();
+        Logger log = TestLogger.create("test", enabledLevels, records);
+
+        log.info().onceEvery(Duration.ofHours(1)).log("first");
+
+        assertEquals(1, records.size());
+    }
+
+    @Test
+    void onceEveryDurationOnDisabledLevelIsNoop() {
+        RateLimiter.reset();
+        Logger log = TestLogger.create("test", enabledLevels, records);
+
+        log.debug().onceEvery(Duration.ofMillis(1)).log("nope");
+
+        assertEquals(0, records.size());
+    }
+
+    @Test
+    void onceEveryWithAttributes() {
+        RateLimiter.reset();
+        Logger log = TestLogger.create("test", enabledLevels, records);
+
+        for (int i = 0; i < 10; i++) {
+            log.info().onceEvery(5).attr("i", i).log("tick");
+        }
+
+        assertEquals(2, records.size());
+        // First emitted event has only i=0 (no skipped on first call)
+        List<Attr> a0 = attrs(records.get(0));
+        assertEquals(1, a0.size());
+        assertEquals("i", a0.get(0).key());
+        assertEquals(0, a0.get(0).value());
+        // Second emitted event has skipped=4, i=5
+        List<Attr> a1 = attrs(records.get(1));
+        assertEquals(2, a1.size());
+        assertEquals("skipped", a1.get(0).key());
+        assertEquals(4L, a1.get(0).value());
+        assertEquals("i", a1.get(1).key());
+        assertEquals(5, a1.get(1).value());
+    }
 }

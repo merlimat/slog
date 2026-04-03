@@ -15,6 +15,7 @@
  */
 package io.github.merlimat.slog;
 
+import java.time.Duration;
 
 /**
  * A fluent builder for constructing a structured log event.
@@ -132,6 +133,40 @@ public interface Event {
      * @return this event, for chaining
      */
     Event timed();
+
+    /**
+     * Rate-limits this log statement so that only every Nth invocation from the same
+     * call site is emitted. The first invocation always emits. For best performance,
+     * call this early in the chain so that suppressed invocations skip subsequent
+     * {@code attr()} calls.
+     *
+     * <pre>{@code
+     * log.info().onceEvery(100)
+     *     .attr("item", item)
+     *     .log("Processing");
+     * }</pre>
+     *
+     * @param n emit one in every {@code n} calls (must be &ge; 1)
+     * @return this event if it should be emitted, or a no-op event if suppressed
+     */
+    Event onceEvery(int n);
+
+    /**
+     * Rate-limits this log statement so that it emits at most once per the specified
+     * duration from the same call site. The first invocation always emits. For best
+     * performance, call this early in the chain so that suppressed invocations skip
+     * subsequent {@code attr()} calls.
+     *
+     * <pre>{@code
+     * log.warn().onceEvery(Duration.ofSeconds(30))
+     *     .attr("queue", queueName)
+     *     .log("Queue is full");
+     * }</pre>
+     *
+     * @param duration the minimum interval between emissions
+     * @return this event if it should be emitted, or a no-op event if suppressed
+     */
+    Event onceEvery(Duration duration);
 
     /**
      * Emits the log event with the given message. This is the terminal operation
