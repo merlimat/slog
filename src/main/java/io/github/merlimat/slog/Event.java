@@ -140,6 +140,10 @@ public interface Event {
      * call this early in the chain so that suppressed invocations skip subsequent
      * {@code attr()} calls.
      *
+     * <p>When an event is emitted after suppressed calls, a {@code "skipped"} attribute
+     * is automatically added with the number of suppressed occurrences since the last
+     * emission. The first emission from a call site does not include this attribute.
+     *
      * <pre>{@code
      * log.info().onceEvery(100)
      *     .attr("item", item)
@@ -156,6 +160,10 @@ public interface Event {
      * duration from the same call site. The first invocation always emits. For best
      * performance, call this early in the chain so that suppressed invocations skip
      * subsequent {@code attr()} calls.
+     *
+     * <p>When an event is emitted after suppressed calls, a {@code "skipped"} attribute
+     * is automatically added with the number of suppressed occurrences since the last
+     * emission. The first emission from a call site does not include this attribute.
      *
      * <pre>{@code
      * log.warn().onceEvery(Duration.ofSeconds(30))
