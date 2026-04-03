@@ -15,6 +15,7 @@
  */
 package io.github.merlimat.slog.benchmark;
 
+import com.google.common.flogger.FluentLogger;
 import io.github.merlimat.slog.Logger;
 import java.util.concurrent.TimeUnit;
 import org.openjdk.jmh.annotations.*;
@@ -33,6 +34,8 @@ import org.openjdk.jmh.annotations.*;
 @Measurement(iterations = 2)
 @Fork(1)
 public class LoggingBenchmark {
+
+    private static final FluentLogger flogger = FluentLogger.forEnclosingClass();
 
     private Logger slog;
     private Logger slogWithContext;
@@ -104,6 +107,16 @@ public class LoggingBenchmark {
         log4j2.info("Request processed method={} path={} status={}", "GET", "/api/orders", 200);
     }
 
+    @Benchmark
+    public void floggerSimple_enabled() {
+        flogger.atInfo().log("Request processed");
+    }
+
+    @Benchmark
+    public void floggerPositional_enabled() {
+        flogger.atInfo().log("Request processed method=%s path=%s status=%d", "GET", "/api/orders", 200);
+    }
+
     // ---------------------------------------------------------------
     // Disabled (TRACE level — root is INFO)
     // ---------------------------------------------------------------
@@ -149,5 +162,15 @@ public class LoggingBenchmark {
     @Benchmark
     public void log4j2Positional_disabled() {
         log4j2.trace("Request processed method={} path={} status={}", "GET", "/api/orders", 200);
+    }
+
+    @Benchmark
+    public void floggerSimple_disabled() {
+        flogger.atFinest().log("Request processed");
+    }
+
+    @Benchmark
+    public void floggerPositional_disabled() {
+        flogger.atFinest().log("Request processed method=%s path=%s status=%d", "GET", "/api/orders", 200);
     }
 }

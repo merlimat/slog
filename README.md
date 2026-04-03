@@ -194,19 +194,22 @@ Lombok will generate `private static final Logger log = Logger.get(MyService.cla
 ## Performance
 
 slog is designed to add minimal overhead on top of the underlying logging framework.
-JMH benchmarks compare slog against direct Log4j2 and SLF4J calls, all writing to a
-Null appender (measuring framework overhead, not I/O). Root logger level is INFO.
+JMH benchmarks compare slog against direct Log4j2, SLF4J, and Flogger calls, all
+writing to a Null appender (measuring framework overhead, not I/O). Root logger level
+is INFO.
 
 ### Disabled path (TRACE call with INFO level) — ops/μs, higher is better
 
 ```
- slog Simple         ████████████████████████████████████████████  1005.4
- slog Fluent         ████████████████████████████████████████████  1005.0
- Log4j2 Simple       ██████████████████                            413.1
- Log4j2 Positional   ██████████████████                            413.2
- SLF4J Simple        ████████████████                              367.5
- SLF4J Positional    ███████████████                               360.5
- SLF4J Fluent        ███████████████                               359.6
+ slog Simple           ████████████████████████████████████████████  1005.4
+ slog Fluent           ████████████████████████████████████████████  1005.0
+ Log4j2 Simple         ██████████████████                            413.1
+ Log4j2 Positional     ██████████████████                            413.2
+ SLF4J Simple          ████████████████                              367.5
+ Flogger Simple        ████████████████                              360.3
+ SLF4J Positional      ███████████████                               360.5
+ SLF4J Fluent          ███████████████                               359.6
+ Flogger Positional    ███████████████                               344.9
 ```
 
 When the level is disabled, slog checks a cached effective level using a
@@ -218,14 +221,16 @@ singleton, so `attr()` and `log()` calls are no-ops with zero allocation.
 ### Enabled path (INFO call) — ops/μs, higher is better
 
 ```
- slog Simple         ████████████████████████████████████████████   24.6
- Log4j2 Simple       ██████████████████████████                     14.6
- slog Fluent         ███████████████████████                        13.2
- slog Fluent+Ctx     █████████████████████                          12.0
- SLF4J Simple        ████████████████████                           11.2
- SLF4J Positional    ████████████                                    7.1
- Log4j2 Positional   ███████████                                     6.4
- SLF4J Fluent        ███████                                         4.2
+ slog Simple           ████████████████████████████████████████████   24.6
+ Log4j2 Simple         ██████████████████████████                     14.6
+ slog Fluent           ███████████████████████                        13.2
+ slog Fluent+Ctx       █████████████████████                          12.0
+ SLF4J Simple          ████████████████████                           11.2
+ SLF4J Positional      ████████████                                    7.1
+ Log4j2 Positional     ███████████                                     6.4
+ SLF4J Fluent          ███████                                         4.2
+ Flogger Simple        █                                               0.7
+ Flogger Positional    █                                               0.7
 ```
 
 **slog Simple** (no structured attrs) is **1.7× faster** than native Log4j2 and
@@ -244,14 +249,16 @@ allocation.
 ### Allocation rate (enabled path) — B/op, lower is better
 
 ```
- slog Simple         ▏                                                  0
- Log4j2 Simple       █                                                 24
- SLF4J Simple        █                                                 24
- Log4j2 Positional   ██                                                40
- slog Fluent+Ctx     ██                                                40
- SLF4J Positional    ███                                               72
- slog Fluent         ███                                               80
- SLF4J Fluent        ████████████████████████████████████████████     1104
+ slog Simple           ▏                                                  0
+ Log4j2 Simple         █                                                 24
+ SLF4J Simple          █                                                 24
+ Log4j2 Positional     █                                                 40
+ slog Fluent+Ctx       █                                                 40
+ SLF4J Positional      ██                                                72
+ slog Fluent           ██                                                80
+ SLF4J Fluent          ██████████████████████████                      1104
+ Flogger Simple        ██████████████████████████████████████          1624
+ Flogger Positional    ████████████████████████████████████████████    1904
 ```
 
 **slog Simple** achieves **zero allocation** — the `MutableLogEvent`, message, and
@@ -261,6 +268,11 @@ no garbage at all.
 **slog Fluent** allocates **80 B/op** (two small arrays for event attributes plus
 autoboxing of one `int` argument), compared to **1,104 B/op** for SLF4J's fluent
 API — a **14× reduction** in garbage produced per log call.
+
+**Flogger** allocates **1,624–1,904 B/op** and achieves only **0.7 ops/μs** on the
+enabled path — **35× slower** than slog Simple and **6× slower** than SLF4J Fluent.
+The overhead comes from Flogger's backend translation layer (Log4j2 backend) and
+heavy per-call allocation.
 
 ### Running the benchmarks
 

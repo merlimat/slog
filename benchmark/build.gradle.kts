@@ -5,6 +5,7 @@ plugins {
 
 val slf4jVersion: String by project
 val log4j2Version: String by project
+val floggerVersion = "0.9"
 
 java {
     sourceCompatibility = JavaVersion.VERSION_17
@@ -21,6 +22,8 @@ dependencies {
     jmhImplementation("org.apache.logging.log4j:log4j-core:$log4j2Version")
     jmhImplementation("org.apache.logging.log4j:log4j-api:$log4j2Version")
     jmhImplementation("org.apache.logging.log4j:log4j-slf4j2-impl:$log4j2Version")
+    jmhImplementation("com.google.flogger:flogger:$floggerVersion")
+    jmhImplementation("com.google.flogger:flogger-log4j2-backend:$floggerVersion")
 }
 
 jmh {
