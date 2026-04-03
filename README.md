@@ -12,6 +12,7 @@ A lightweight structured logging library for Java, inspired by Go's [log/slog](h
 - **Deferred logging** — `log.debug(e -> e.attr("k", v()).log(msg()))` wraps everything in a lambda that is only invoked when the level is enabled — ideal for expensive computations
 - **Throwing suppliers** — attribute and message suppliers may throw checked exceptions; failures are caught and the exception message is recorded as the value, so a failing supplier never crashes the application
 - **Printf formatting** — `log.infof("Processed %d items", count)` and `log.info().logf(...)` with deferred formatting
+- **Rate limiting** — `onceEvery(N)` and `onceEvery(Duration)` throttle noisy log statements per call site with automatic `skipped` count tracking
 - **Timed events** — automatically records elapsed duration
 - **Backend auto-discovery** — delegates to Log4j2 if available, falls back to SLF4J; no hard runtime dependencies
 
@@ -93,6 +94,33 @@ Event e = log.info().timed();
 executeQuery(sql);
 e.attr("query", sql).log("Query executed");
 // Automatically includes durationMs
+```
+
+## Rate Limiting
+
+Throttle noisy log statements directly at the call site — no external filter
+configuration required. When a call is suppressed, a no-op singleton is returned
+so all subsequent `attr()` and `log()` calls in the chain are free.
+
+```java
+// Count-based: emit once every 1000 calls from this site
+log.info().onceEvery(1000)
+    .attr("item", item)
+    .log("Processing");
+
+// Time-based: emit at most once every 30 seconds from this site
+log.warn().onceEvery(Duration.ofSeconds(30))
+    .attr("queueDepth", queue.size())
+    .log("Queue backlog growing");
+```
+
+Both overloads are keyed by call site (class + line number), so different log
+statements maintain independent counters. The first invocation from any call site
+always emits. When calls have been suppressed, the emitted event automatically
+includes a `skipped` attribute with the number of suppressed occurrences:
+
+```
+INFO  Processing {skipped=999, item=...}
 ```
 
 ## Context Propagation
