@@ -117,6 +117,7 @@ final class Log4j2Logger extends BaseLogger {
                         Throwable throwable, Duration duration, String callerFqcn) {
         MutableLogEvent event = THREAD_LOCAL_EVENT.get();
         event.clear();
+        event.setContextStack(org.apache.logging.log4j.ThreadContext.EMPTY_STACK);
 
         event.setLoggerName(loggerName);
         event.setLoggerFqcn(callerFqcn);
