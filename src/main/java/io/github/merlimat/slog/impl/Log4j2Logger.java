@@ -24,6 +24,7 @@ import java.time.Duration;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.core.LoggerContext;
 import org.apache.logging.log4j.core.config.LoggerConfig;
+import org.apache.logging.log4j.core.impl.ContextDataFactory;
 import org.apache.logging.log4j.core.impl.MutableLogEvent;
 import org.apache.logging.log4j.util.SortedArrayStringMap;
 import org.apache.logging.log4j.util.StringMap;
@@ -140,7 +141,7 @@ final class Log4j2Logger extends BaseLogger {
                                               String[] eventKeys, Object[] eventValues,
                                               int eventAttrCount, Duration duration) {
         if (!hasContext(contextAttrs, eventAttrCount, duration)) {
-            return null;
+            return ContextDataFactory.emptyFrozenContextData();
         }
 
         var map = THREAD_LOCAL_CTX.get();
