@@ -108,6 +108,35 @@ public interface Event {
     Event attr(String key, ThrowingSupplier<?> value);
 
     /**
+     * Inherits the context attributes from another logger for this event only.
+     * Useful when the current logger is a static/shared instance but you want
+     * to attach the context of a request- or component-scoped logger without
+     * allocating a new child logger.
+     *
+     * <p>Ordering mirrors {@link LoggerBuilder#ctx}: the inherited attrs are
+     * placed <i>before</i> the current logger's own context, followed by the
+     * per-event attrs. Multiple calls append in invocation order.
+     *
+     * <pre>{@code
+     * static final Logger log = Logger.get(MyService.class);
+     *
+     * void handle(Logger requestLog, String msgId) {
+     *     log.info()
+     *         .ctx(requestLog)          // adopt request-scoped context
+     *         .attr("msgId", msgId)
+     *         .log("processed");
+     * }
+     * }</pre>
+     *
+     * <p>Allocation-free when the current logger has no context of its own
+     * (the common static-logger case).
+     *
+     * @param other the logger whose context to inherit
+     * @return this event, for chaining
+     */
+    Event ctx(Logger other);
+
+    /**
      * Attaches an exception to this event, including the full stack trace.
      * No-op if {@code t} is {@code null}.
      *
