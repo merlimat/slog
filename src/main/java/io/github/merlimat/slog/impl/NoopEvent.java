@@ -16,6 +16,7 @@
 package io.github.merlimat.slog.impl;
 
 import io.github.merlimat.slog.Event;
+import io.github.merlimat.slog.Logger;
 import io.github.merlimat.slog.ThrowingSupplier;
 import java.time.Duration;
 
@@ -58,6 +59,11 @@ enum NoopEvent implements Event {
 
     @Override
     public Event attr(String key, ThrowingSupplier<?> value) {
+        return this;
+    }
+
+    @Override
+    public Event ctx(Logger other) {
         return this;
     }
 

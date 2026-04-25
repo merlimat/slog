@@ -563,6 +563,97 @@ class LoggerTest {
     }
 
     @Test
+    void eventCtxAttachesForeignContext() {
+        Logger requestLog = TestLogger.create("request", enabledLevels, records).with()
+                .attr("requestId", "req-42")
+                .attr("traceId", "abc-123")
+                .build();
+
+        Logger log = TestLogger.create("test", enabledLevels, records);
+        log.info().ctx(requestLog).attr("msgId", "1:2:3").log("processed");
+
+        assertEquals(1, records.size());
+        LogRecord r = records.get(0);
+        // Logger name stays the static logger's name
+        assertEquals("test", r.loggerName());
+        List<Attr> a = attrs(r);
+        assertEquals(3, a.size());
+        // ctx attrs come first
+        assertEquals("requestId", a.get(0).key());
+        assertEquals("traceId", a.get(1).key());
+        // then per-event attrs
+        assertEquals("msgId", a.get(2).key());
+    }
+
+    @Test
+    void eventCtxOrderedBeforeLoggerOwnContext() {
+        Logger requestLog = TestLogger.create("request", enabledLevels, records).with()
+                .attr("requestId", "req-42")
+                .build();
+
+        Logger log = TestLogger.create("test", enabledLevels, records).with()
+                .attr("component", "worker")
+                .build();
+
+        log.info().ctx(requestLog).attr("msgId", "1:2:3").log("processed");
+
+        List<Attr> a = attrs(records.get(0));
+        assertEquals(3, a.size());
+        // ctx attrs first, then logger's own, then per-event
+        assertEquals("requestId", a.get(0).key());
+        assertEquals("component", a.get(1).key());
+        assertEquals("msgId", a.get(2).key());
+    }
+
+    @Test
+    void eventCtxWithEmptyLoggerIsNoOp() {
+        Logger empty = TestLogger.create("empty", enabledLevels, records);
+        Logger log = TestLogger.create("test", enabledLevels, records);
+
+        log.info().ctx(empty).attr("k", "v").log("msg");
+
+        List<Attr> a = attrs(records.get(0));
+        assertEquals(1, a.size());
+        assertEquals("k", a.get(0).key());
+    }
+
+    @Test
+    void eventCtxMultipleCallsAppendInOrder() {
+        Logger producerLog = TestLogger.create("producer", enabledLevels, records).with()
+                .attr("topic", "orders")
+                .build();
+        Logger requestLog = TestLogger.create("request", enabledLevels, records).with()
+                .attr("requestId", "req-42")
+                .build();
+
+        Logger log = TestLogger.create("test", enabledLevels, records);
+        log.info()
+                .ctx(producerLog)
+                .ctx(requestLog)
+                .attr("extra", "val")
+                .log("combined");
+
+        List<Attr> a = attrs(records.get(0));
+        assertEquals(3, a.size());
+        assertEquals("topic", a.get(0).key());
+        assertEquals("requestId", a.get(1).key());
+        assertEquals("extra", a.get(2).key());
+    }
+
+    @Test
+    void eventCtxOnDisabledLevelIsNoOp() {
+        Logger requestLog = TestLogger.create("request", enabledLevels, records).with()
+                .attr("requestId", "req-42")
+                .build();
+
+        Logger log = TestLogger.create("test", enabledLevels, records);
+        // DEBUG is disabled in this test setup
+        log.debug().ctx(requestLog).attr("k", "v").log("nope");
+
+        assertEquals(0, records.size());
+    }
+
+    @Test
     void duplicateKeysInEventAttrs() {
         Logger log = TestLogger.create("test", enabledLevels, records).with()
                 .attr("key", "from-context")

@@ -16,6 +16,7 @@
 package io.github.merlimat.slog.impl;
 
 import io.github.merlimat.slog.Event;
+import io.github.merlimat.slog.Logger;
 import io.github.merlimat.slog.ThrowingSupplier;
 import java.time.Clock;
 import java.time.Duration;
@@ -35,6 +36,7 @@ final class EventImpl implements Event {
     private int attrCount;
     private Throwable throwable;
     private Instant startTime;
+    private AttrChain extraContext = AttrChain.EMPTY;
 
     EventImpl(BaseLogger logger, Level level, Clock clock) {
         this.logger = logger;
@@ -86,6 +88,15 @@ final class EventImpl implements Event {
     @Override
     public Event attr(String key, ThrowingSupplier<?> value) {
         return attr(key, (Object) value);
+    }
+
+    @Override
+    public Event ctx(Logger other) {
+        AttrChain otherCtx = ((BaseLogger) other).contextAttrs();
+        if (!otherCtx.isEmpty()) {
+            extraContext = otherCtx.withPrefix(extraContext);
+        }
+        return this;
     }
 
     @Override
@@ -161,8 +172,12 @@ final class EventImpl implements Event {
                 ? Duration.between(startTime, clock.instant())
                 : null;
 
+        AttrChain contextAttrs = extraContext.isEmpty()
+                ? logger.contextAttrs()
+                : logger.contextAttrs().withPrefix(extraContext);
+
         logger.emit(logger.name(), level, msg,
-                logger.contextAttrs(),
+                contextAttrs,
                 attrKeys, attrValues, attrCount,
                 throwable, duration, FQCN);
     }
