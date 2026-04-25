@@ -22,6 +22,7 @@ import java.time.Clock;
 import java.time.Duration;
 
 import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.ThreadContext;
 import org.apache.logging.log4j.core.LoggerContext;
 import org.apache.logging.log4j.core.config.LoggerConfig;
 import org.apache.logging.log4j.core.impl.ContextDataFactory;
@@ -140,12 +141,23 @@ final class Log4j2Logger extends BaseLogger {
     private static StringMap buildContextData(AttrChain contextAttrs,
                                               String[] eventKeys, Object[] eventValues,
                                               int eventAttrCount, Duration duration) {
-        if (!hasContext(contextAttrs, eventAttrCount, duration)) {
+        // Fast path: empty MDC and no slog attrs — share a single frozen instance,
+        // no allocation, no map clear.
+        boolean mdcEmpty = ThreadContext.isEmpty();
+        if (mdcEmpty && !hasContext(contextAttrs, eventAttrCount, duration)) {
             return ContextDataFactory.emptyFrozenContextData();
         }
 
         var map = THREAD_LOCAL_CTX.get();
         map.clear();
+        if (!mdcEmpty) {
+            // Inject log4j2 ThreadContext (MDC) so appenders / patterns that read
+            // from event.getContextData() see the caller's MDC. getImmutableContext()
+            // returns a backing-map reference (no copy), and forEach iterates without
+            // allocating intermediate entries. Slog attrs added below override on
+            // key collision.
+            ThreadContext.getImmutableContext().forEach(map::putValue);
+        }
         for (Attr attr : contextAttrs) {
             map.putValue(attr.key(), attr.value());
         }
