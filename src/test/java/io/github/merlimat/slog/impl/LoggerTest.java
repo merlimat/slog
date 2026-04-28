@@ -360,6 +360,21 @@ class LoggerTest {
     }
 
     @Test
+    void ctxWithNullLoggerIsNoOp() {
+        Logger log = TestLogger.create("test", enabledLevels, records).with()
+                .ctx(null)
+                .attr("key", "val")
+                .build();
+
+        log.info("msg");
+
+        assertEquals(1, records.size());
+        List<Attr> a = attrs(records.get(0));
+        assertEquals(1, a.size());
+        assertEquals("key", a.get(0).key());
+    }
+
+    @Test
     void multipleCtxCallsAppendInOrder() {
         Logger producerLog = TestLogger.create("producer", enabledLevels, records).with()
                 .attr("topic", "orders")
@@ -611,6 +626,17 @@ class LoggerTest {
         Logger log = TestLogger.create("test", enabledLevels, records);
 
         log.info().ctx(empty).attr("k", "v").log("msg");
+
+        List<Attr> a = attrs(records.get(0));
+        assertEquals(1, a.size());
+        assertEquals("k", a.get(0).key());
+    }
+
+    @Test
+    void eventCtxWithNullLoggerIsNoOp() {
+        Logger log = TestLogger.create("test", enabledLevels, records);
+
+        log.info().ctx(null).attr("k", "v").log("msg");
 
         List<Attr> a = attrs(records.get(0));
         assertEquals(1, a.size());

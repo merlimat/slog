@@ -36,7 +36,7 @@ public interface LoggerBuilder {
      * // order: producerLog attrs → requestLog attrs → extra
      * }</pre>
      *
-     * @param other the logger whose context to inherit
+     * @param other the logger whose context to inherit; no-op if {@code null}
      * @return this builder, for chaining
      */
     LoggerBuilder ctx(Logger other);
