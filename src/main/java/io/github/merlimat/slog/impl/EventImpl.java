@@ -92,6 +92,9 @@ final class EventImpl implements Event {
 
     @Override
     public Event ctx(Logger other) {
+        if (other == null) {
+            return this;
+        }
         AttrChain otherCtx = ((BaseLogger) other).contextAttrs();
         if (!otherCtx.isEmpty()) {
             extraContext = otherCtx.withPrefix(extraContext);

@@ -131,7 +131,7 @@ public interface Event {
      * <p>Allocation-free when the current logger has no context of its own
      * (the common static-logger case).
      *
-     * @param other the logger whose context to inherit
+     * @param other the logger whose context to inherit; no-op if {@code null}
      * @return this event, for chaining
      */
     Event ctx(Logger other);

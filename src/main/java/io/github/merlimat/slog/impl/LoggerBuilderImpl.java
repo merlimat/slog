@@ -35,6 +35,9 @@ final class LoggerBuilderImpl implements LoggerBuilder {
 
     @Override
     public LoggerBuilder ctx(Logger other) {
+        if (other == null) {
+            return this;
+        }
         AttrChain otherAttrs = ((BaseLogger) other).contextAttrs();
         if (!otherAttrs.isEmpty()) {
             inherited = otherAttrs.withPrefix(inherited);
