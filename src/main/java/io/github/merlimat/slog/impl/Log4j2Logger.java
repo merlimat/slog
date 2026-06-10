@@ -16,7 +16,9 @@
 package io.github.merlimat.slog.impl;
 
 import io.github.merlimat.slog.Logger;
+import java.lang.invoke.MethodHandle;
 import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 import java.lang.invoke.VarHandle;
 import java.time.Clock;
 import java.util.HashMap;
@@ -89,6 +91,36 @@ final class Log4j2Logger extends BaseLogger {
 
     private static final ThreadLocal<PooledEmitState> POOLED_STATE =
             ThreadLocal.withInitial(PooledEmitState::new);
+
+    /**
+     * {@code Thread.isVirtual()}, resolved once — or constant {@code false} on JVMs
+     * without virtual threads (this library compiles at Java 17, where the method does
+     * not exist; the constant fallback lets the JIT erase the check entirely there).
+     * Pooling is skipped on virtual threads: they are typically short-lived and can
+     * exist in the millions, so per-thread pooled state would be allocated once, used
+     * a handful of times, and abandoned — and the pool's memory footprint would scale
+     * with the number of live virtual threads.
+     */
+    private static final MethodHandle IS_VIRTUAL = resolveIsVirtual();
+
+    private static MethodHandle resolveIsVirtual() {
+        try {
+            return MethodHandles.publicLookup()
+                    .findVirtual(Thread.class, "isVirtual", MethodType.methodType(boolean.class));
+        } catch (ReflectiveOperationException e) {
+            // Pre-Java 21: virtual threads do not exist
+            return MethodHandles.dropArguments(
+                    MethodHandles.constant(boolean.class, false), 0, Thread.class);
+        }
+    }
+
+    static boolean isVirtual(Thread thread) {
+        try {
+            return (boolean) IS_VIRTUAL.invokeExact(thread);
+        } catch (Throwable t) {
+            return false;
+        }
+    }
 
     /**
      * Whether the LMAX Disruptor is on the classpath. {@link AsyncLogger} implements a
@@ -185,9 +217,10 @@ final class Log4j2Logger extends BaseLogger {
             return;
         }
 
+        Thread currentThread = Thread.currentThread();
         PooledEmitState pooled = null;
         MutableLogEvent event;
-        if (POOL_EVENTS) {
+        if (POOL_EVENTS && !isVirtual(currentThread)) {
             PooledEmitState state = POOLED_STATE.get();
             if (!state.inUse) {
                 state.inUse = true;
@@ -215,7 +248,6 @@ final class Log4j2Logger extends BaseLogger {
                     eventAttrCount, durationNanos));
             event.setTimeMillis(clock.millis());
 
-            Thread currentThread = Thread.currentThread();
             event.setThreadName(currentThread.getName());
             // event.setThreadId(currentThread.threadId()); // Only available in java >= 19
             event.setThreadPriority(currentThread.getPriority());
