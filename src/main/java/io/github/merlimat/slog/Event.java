@@ -158,6 +158,8 @@ public interface Event {
     /**
      * Starts a timer for this event. The elapsed duration between this call and
      * {@link #log(String)} will be recorded as a {@code durationMs} attribute.
+     * The duration is measured with a monotonic clock ({@link System#nanoTime()}),
+     * so it is unaffected by wall-clock adjustments.
      *
      * @return this event, for chaining
      */
