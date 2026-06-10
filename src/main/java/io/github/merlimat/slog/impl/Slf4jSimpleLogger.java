@@ -78,7 +78,8 @@ final class Slf4jSimpleLogger extends BaseLogger {
                                         int eventAttrCount, long durationNanos) {
         var sb = new StringBuilder();
         sb.append(message);
-        for (Attr attr : contextAttrs) {
+        for (int i = 0; i < contextAttrs.size(); i++) {
+            Attr attr = contextAttrs.get(i);
             sb.append(' ').append(attr.key()).append('=').append(attr.valueAsString());
         }
         for (int i = 0; i < eventAttrCount; i++) {

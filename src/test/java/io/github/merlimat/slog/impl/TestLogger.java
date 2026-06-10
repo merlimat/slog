@@ -63,8 +63,8 @@ final class TestLogger extends BaseLogger {
                         Throwable throwable, long durationNanos, String callerFqcn) {
         // Reconstruct a snapshot list of Attr for test assertions
         var attrs = new ArrayList<Attr>();
-        for (Attr attr : contextAttrs) {
-            attrs.add(attr);
+        for (int i = 0; i < contextAttrs.size(); i++) {
+            attrs.add(contextAttrs.get(i));
         }
         for (int i = 0; i < eventAttrCount; i++) {
             attrs.add(new Attr(eventKeys[i], Attr.resolveValue(eventValues[i])));
