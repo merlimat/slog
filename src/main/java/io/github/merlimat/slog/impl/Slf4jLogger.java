@@ -86,7 +86,8 @@ final class Slf4jLogger extends BaseLogger {
         // handful of keys a single event touches.
         MdcRestore mdc = new MdcRestore(eventAttrCount + 5);
         try {
-            for (Attr attr : contextAttrs) {
+            for (int i = 0; i < contextAttrs.size(); i++) {
+                Attr attr = contextAttrs.get(i);
                 mdc.put(attr.key(), attr.valueAsString());
             }
             for (int i = 0; i < eventAttrCount; i++) {

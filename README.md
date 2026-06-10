@@ -6,7 +6,7 @@ A lightweight structured logging library for Java, inspired by Go's [log/slog](h
 
 - **Structured key-value logging** — every log event carries typed attributes, not just a formatted string
 - **Zero overhead when disabled** — level checks use a cached generation-counter scheme; disabled levels cost a single integer comparison with no volatile fence or framework call
-- **Immutable context propagation** — derive loggers with `logger.with()` to attach attributes that are automatically included in every subsequent log call; parent attrs are shared, never copied
+- **Immutable context propagation** — derive loggers with `logger.with()` to attach attributes that are automatically included in every subsequent log call; the combined context is flattened once at build time, so emits iterate a flat array with zero per-event allocation
 - **Cross-component context** — propagate context across component boundaries with `builder.ctx(otherLogger)`
 - **Fluent event builder** — `log.info().attr("k", "v").log("msg")` for structured events; returns a no-op singleton when the level is disabled
 - **Deferred logging** — `log.debug(e -> e.attr("k", v()).log(msg()))` wraps everything in a lambda that is only invoked when the level is enabled — ideal for expensive computations
@@ -126,7 +126,8 @@ INFO  Processing {skipped=999, item=...}
 ## Context Propagation
 
 The `with()` builder returns a new immutable logger — the original is never modified.
-Parent attributes are shared by reference, never copied. This is designed for
+The combined context is flattened into a single array once, when the logger is
+built, so log calls pay no per-event cost for it. This is designed for
 component-scoped logging where you want certain attributes attached to every log
 call without repeating them:
 

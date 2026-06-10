@@ -224,7 +224,8 @@ final class Log4j2Logger extends BaseLogger {
         // backing array, so N direct puts would snapshot the context map N times.
         // Collecting into one map and calling putAll() snapshots it once.
         Map<String, String> attrs = new HashMap<>();
-        for (Attr attr : contextAttrs) {
+        for (int i = 0; i < contextAttrs.size(); i++) {
+            Attr attr = contextAttrs.get(i);
             attrs.put(attr.key(), attr.valueAsString());
         }
         for (int i = 0; i < eventAttrCount; i++) {
@@ -273,7 +274,8 @@ final class Log4j2Logger extends BaseLogger {
             // key collision.
             ThreadContext.getImmutableContext().forEach(map::putValue);
         }
-        for (Attr attr : contextAttrs) {
+        for (int i = 0; i < contextAttrs.size(); i++) {
+            Attr attr = contextAttrs.get(i);
             map.putValue(attr.key(), attr.value());
         }
         for (int i = 0; i < eventAttrCount; i++) {
