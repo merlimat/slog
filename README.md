@@ -292,7 +292,10 @@ allocation.
 
 **slog Simple** achieves **zero allocation** — the `MutableLogEvent`, message, and
 context map are all pooled in `ThreadLocal`s, so the enabled simple path produces
-no garbage at all.
+no garbage at all. On virtual threads (Java 21+) slog detects `Thread.isVirtual()`
+and allocates per event instead: per-thread pools would be created once, barely
+used, and abandoned, with a footprint that scales with the number of live virtual
+threads.
 
 **slog Fluent** allocates **80 B/op** (two small arrays for event attributes plus
 autoboxing of one `int` argument), compared to **1,104 B/op** for SLF4J's fluent
