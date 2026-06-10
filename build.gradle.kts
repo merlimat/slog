@@ -37,6 +37,8 @@ dependencies {
     testImplementation("org.apache.logging.log4j:log4j-core:$log4j2Version")
     testImplementation("org.apache.logging.log4j:log4j-slf4j2-impl:$log4j2Version")
     testImplementation("com.fasterxml.jackson.core:jackson-databind:$jacksonVersion")
+    // Required by AsyncLoggerContextSelector in the asyncLoggerTest task
+    testRuntimeOnly("com.lmax:disruptor:3.4.4")
 
     nmcpAggregation(project(":"))
 }
@@ -56,6 +58,39 @@ tasks.test {
     testLogging {
         showStandardStreams = true
     }
+    // These run in their own tasks with a modified environment
+    exclude("**/AsyncLoggerModeTest*")
+    exclude("**/NoDisruptorTest*")
+}
+
+val asyncLoggerTest = tasks.register<Test>("asyncLoggerTest") {
+    description = "Runs tests that require the full-async Log4j2 context selector"
+    group = "verification"
+    useJUnitPlatform()
+    testClassesDirs = sourceSets.test.get().output.classesDirs
+    classpath = sourceSets.test.get().runtimeClasspath
+    include("**/AsyncLoggerModeTest*")
+    systemProperty(
+        "log4j2.contextSelector",
+        "org.apache.logging.log4j.core.async.AsyncLoggerContextSelector"
+    )
+    testLogging {
+        showStandardStreams = true
+    }
+}
+
+val noDisruptorTest = tasks.register<Test>("noDisruptorTest") {
+    description = "Runs tests without the LMAX Disruptor on the classpath"
+    group = "verification"
+    useJUnitPlatform()
+    testClassesDirs = sourceSets.test.get().output.classesDirs
+    classpath = sourceSets.test.get().runtimeClasspath.filter { !it.name.startsWith("disruptor") }
+    include("**/NoDisruptorTest*")
+}
+
+tasks.check {
+    dependsOn(asyncLoggerTest)
+    dependsOn(noDisruptorTest)
 }
 
 publishing {
