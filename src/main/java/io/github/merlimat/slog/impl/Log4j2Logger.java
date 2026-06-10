@@ -20,6 +20,7 @@ import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
 import java.time.Clock;
 import java.time.Duration;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.ThreadContext;
@@ -38,21 +39,23 @@ import org.apache.logging.log4j.util.StringMap;
  * querying the Log4j2 hierarchy on every call.
  */
 final class Log4j2Logger extends BaseLogger {
-    /** Bumped once by a single static listener whenever Log4j2's configuration changes. */
-    private static int generation;
+    /**
+     * Bumped atomically by a single static listener whenever Log4j2's configuration
+     * changes. The hot path reads it with {@code getOpaque()}, so no fence is paid.
+     */
+    private static final AtomicInteger GENERATION = new AtomicInteger();
 
-    private static final VarHandle GENERATION;
+    private static final VarHandle CACHED_GEN_AND_LEVEL;
 
     static {
         try {
-            GENERATION = MethodHandles.lookup()
-                    .findStaticVarHandle(Log4j2Logger.class, "generation", int.class);
+            CACHED_GEN_AND_LEVEL = MethodHandles.lookup()
+                    .findVarHandle(Log4j2Logger.class, "cachedGenAndLevel", long.class);
         } catch (ReflectiveOperationException e) {
             throw new ExceptionInInitializerError(e);
         }
         ((LoggerContext) LogManager.getContext(false))
-                .addPropertyChangeListener(evt ->
-                        GENERATION.setOpaque((int) GENERATION.getOpaque() + 1));
+                .addPropertyChangeListener(evt -> GENERATION.incrementAndGet());
     }
 
     private static final ThreadLocal<MutableLogEvent> THREAD_LOCAL_EVENT =
@@ -63,9 +66,14 @@ final class Log4j2Logger extends BaseLogger {
 
     private final org.apache.logging.log4j.core.Logger log4j;
 
-    /** Cached effective intLevel — refreshed lazily when GENERATION changes. */
-    private int cachedIntLevel;
-    private int cachedGeneration = -1; // force first refresh
+    /**
+     * Cached (generation, effective intLevel) packed into a single long: generation in
+     * the high 32 bits, intLevel in the low 32. Both halves are always written together,
+     * so a concurrent reader can never observe a fresh generation paired with a stale
+     * level. Accessed in opaque mode: atomic (no tearing) but fence-free, keeping the
+     * disabled-path check as cheap as a plain field read.
+     */
+    private long cachedGenAndLevel = pack(-1, 0); // generation -1 forces the first refresh
 
     Log4j2Logger(String name, AttrChain contextAttrs, Clock clock) {
         super(name, contextAttrs, clock);
@@ -79,12 +87,18 @@ final class Log4j2Logger extends BaseLogger {
     }
 
     private int effectiveIntLevel() {
-        int gen = (int) GENERATION.getOpaque();
-        if (gen != cachedGeneration) {
-            cachedIntLevel = log4j.getLevel().intLevel();
-            cachedGeneration = gen;
+        int gen = GENERATION.getOpaque();
+        long cached = (long) CACHED_GEN_AND_LEVEL.getOpaque(this);
+        if ((int) (cached >>> 32) != gen) {
+            int intLevel = log4j.getLevel().intLevel();
+            CACHED_GEN_AND_LEVEL.setOpaque(this, pack(gen, intLevel));
+            return intLevel;
         }
-        return cachedIntLevel;
+        return (int) cached;
+    }
+
+    private static long pack(int generation, int intLevel) {
+        return ((long) generation << 32) | (intLevel & 0xFFFFFFFFL);
     }
 
     @Override
