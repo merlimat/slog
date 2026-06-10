@@ -19,11 +19,14 @@ import io.github.merlimat.slog.Logger;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
 import java.time.Clock;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.ThreadContext;
 import org.apache.logging.log4j.core.LoggerContext;
+import org.apache.logging.log4j.core.async.AsyncLogger;
 import org.apache.logging.log4j.core.config.LoggerConfig;
 import org.apache.logging.log4j.core.impl.ContextDataFactory;
 import org.apache.logging.log4j.core.impl.MutableLogEvent;
@@ -63,7 +66,27 @@ final class Log4j2Logger extends BaseLogger {
     private static final ThreadLocal<StringMap> THREAD_LOCAL_CTX =
             ThreadLocal.withInitial(SortedArrayStringMap::new);
 
+    /**
+     * Whether the LMAX Disruptor is on the classpath. {@link AsyncLogger} implements a
+     * disruptor interface, so merely linking it (e.g. for an {@code instanceof} check)
+     * throws {@link NoClassDefFoundError} when the optional disruptor jar is absent.
+     * The {@code instanceof} below must only execute when this is true.
+     */
+    private static final boolean DISRUPTOR_PRESENT = isDisruptorPresent();
+
+    private static boolean isDisruptorPresent() {
+        try {
+            Class.forName("com.lmax.disruptor.RingBuffer", false, Log4j2Logger.class.getClassLoader());
+            return true;
+        } catch (ClassNotFoundException | LinkageError e) {
+            return false;
+        }
+    }
+
     private final org.apache.logging.log4j.core.Logger log4j;
+
+    /** True when the full-async selector is active and this logger enqueues to the disruptor. */
+    private final boolean asyncLogger;
 
     /**
      * Cached (generation, effective intLevel) packed into a single long: generation in
@@ -77,12 +100,14 @@ final class Log4j2Logger extends BaseLogger {
     Log4j2Logger(String name, AttrChain contextAttrs, Clock clock) {
         super(name, contextAttrs, clock);
         this.log4j = (org.apache.logging.log4j.core.Logger) LogManager.getLogger(name);
+        this.asyncLogger = DISRUPTOR_PRESENT && log4j instanceof AsyncLogger;
     }
 
     private Log4j2Logger(String name, org.apache.logging.log4j.core.Logger log4j,
                           AttrChain contextAttrs, Clock clock) {
         super(name, contextAttrs, clock);
         this.log4j = log4j;
+        this.asyncLogger = DISRUPTOR_PRESENT && log4j instanceof AsyncLogger;
     }
 
     private int effectiveIntLevel() {
@@ -130,6 +155,12 @@ final class Log4j2Logger extends BaseLogger {
                         AttrChain contextAttrs,
                         String[] eventKeys, Object[] eventValues, int eventAttrCount,
                         Throwable throwable, long durationNanos, String callerFqcn) {
+        if (asyncLogger) {
+            emitThroughAsyncLogger(level, message, contextAttrs, eventKeys, eventValues,
+                    eventAttrCount, throwable, durationNanos, callerFqcn);
+            return;
+        }
+
         MutableLogEvent event = THREAD_LOCAL_EVENT.get();
         event.clear();
         event.setContextStack(org.apache.logging.log4j.ThreadContext.EMPTY_STACK);
@@ -149,6 +180,54 @@ final class Log4j2Logger extends BaseLogger {
 
         LoggerConfig loggerConfig = log4j.get();
         loggerConfig.log(event);
+    }
+
+    /**
+     * With the full-async selector ({@code AsyncLoggerContextSelector}) the async hop
+     * lives in {@link AsyncLogger#logMessage}: events are enqueued to the disruptor and
+     * appenders run on a background thread. Calling {@code LoggerConfig.log(event)}
+     * directly would skip that hop and run appender I/O on the application thread, so
+     * this path goes through the logger's native API instead. Structured attrs are
+     * staged in the {@link ThreadContext} for the duration of the call: the disruptor
+     * translator captures context data on the producing thread before {@code logMessage}
+     * returns, so the restore in {@code finally} cannot race with delivery.
+     */
+    private void emitThroughAsyncLogger(Level level, String message, AttrChain contextAttrs,
+                                        String[] eventKeys, Object[] eventValues, int eventAttrCount,
+                                        Throwable throwable, long durationNanos, String callerFqcn) {
+        org.apache.logging.log4j.Level log4jLevel = toLog4j2Level(level);
+        if (!hasContext(contextAttrs, eventAttrCount, durationNanos)) {
+            log4j.logMessage(callerFqcn, log4jLevel, null,
+                    log4j.getMessageFactory().newMessage(message), throwable);
+            return;
+        }
+
+        // Batched on purpose: every ThreadContext.put() copy-on-writes the entire
+        // backing array, so N direct puts would snapshot the context map N times.
+        // Collecting into one map and calling putAll() snapshots it once.
+        Map<String, String> attrs = new HashMap<>();
+        for (Attr attr : contextAttrs) {
+            attrs.put(attr.key(), attr.valueAsString());
+        }
+        for (int i = 0; i < eventAttrCount; i++) {
+            Object resolved = Attr.resolveValue(eventValues[i]);
+            attrs.put(eventKeys[i], resolved == null ? null : String.valueOf(resolved));
+        }
+        if (durationNanos >= 0) {
+            attrs.put("durationMs", String.valueOf(durationNanos / 1_000_000));
+        }
+
+        // Snapshot is safe: the underlying context map is copy-on-write, so later
+        // puts cannot mutate the map view captured here.
+        Map<String, String> saved = ThreadContext.getImmutableContext();
+        try {
+            ThreadContext.putAll(attrs);
+            log4j.logMessage(callerFqcn, log4jLevel, null,
+                    log4j.getMessageFactory().newMessage(message), throwable);
+        } finally {
+            ThreadContext.clearMap();
+            ThreadContext.putAll(saved);
+        }
     }
 
     private static StringMap buildContextData(AttrChain contextAttrs,
