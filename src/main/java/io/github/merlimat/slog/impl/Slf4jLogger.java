@@ -18,6 +18,7 @@ package io.github.merlimat.slog.impl;
 import io.github.merlimat.slog.Logger;
 
 import java.time.Clock;
+import java.util.Arrays;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 
@@ -79,24 +80,63 @@ final class Slf4jLogger extends BaseLogger {
     private void emitWithMdc(Level level, String msg, AttrChain contextAttrs,
                              String[] eventKeys, Object[] eventValues, int eventAttrCount,
                              Throwable throwable, long durationNanos) {
-        var saved = MDC.getCopyOfContextMap();
+        // Save and restore only the keys this event writes: copying the whole MDC
+        // map (and restoring it with another full copy) scales with the ambient MDC
+        // size — request ids, trace ids, etc. — which in real services dwarfs the
+        // handful of keys a single event touches.
+        MdcRestore mdc = new MdcRestore(eventAttrCount + 5);
         try {
             for (Attr attr : contextAttrs) {
-                MDC.put(attr.key(), attr.valueAsString());
+                mdc.put(attr.key(), attr.valueAsString());
             }
             for (int i = 0; i < eventAttrCount; i++) {
                 Object resolved = Attr.resolveValue(eventValues[i]);
-                MDC.put(eventKeys[i], resolved == null ? null : String.valueOf(resolved));
+                mdc.put(eventKeys[i], resolved == null ? null : String.valueOf(resolved));
             }
             if (durationNanos >= 0) {
-                MDC.put("durationMs", String.valueOf(durationNanos / 1_000_000));
+                mdc.put("durationMs", String.valueOf(durationNanos / 1_000_000));
             }
             emitPlain(level, msg, throwable);
         } finally {
-            if (saved != null) {
-                MDC.setContextMap(saved);
-            } else {
-                MDC.clear();
+            mdc.restore();
+        }
+    }
+
+    /**
+     * Records the MDC keys written during one emit, along with their prior values,
+     * so the restore touches only those keys. A key that was absent before the call
+     * is removed on restore; an ambient value that was explicitly {@code null} is
+     * restored as absent — the two are indistinguishable through {@code MDC.get}.
+     */
+    private static final class MdcRestore {
+        private String[] keys;
+        private String[] prior;
+        private int count;
+
+        MdcRestore(int initialCapacity) {
+            keys = new String[initialCapacity];
+            prior = new String[initialCapacity];
+        }
+
+        void put(String key, String value) {
+            if (count == keys.length) {
+                keys = Arrays.copyOf(keys, count * 2);
+                prior = Arrays.copyOf(prior, count * 2);
+            }
+            keys[count] = key;
+            prior[count] = MDC.get(key);
+            count++;
+            MDC.put(key, value);
+        }
+
+        void restore() {
+            // Reverse order, so with duplicate keys the first-seen prior value wins
+            for (int i = count - 1; i >= 0; i--) {
+                if (prior[i] != null) {
+                    MDC.put(keys[i], prior[i]);
+                } else {
+                    MDC.remove(keys[i]);
+                }
             }
         }
     }
