@@ -209,10 +209,10 @@ final class Log4j2Logger extends BaseLogger {
     @Override
     protected void emit(String loggerName, Level level, String message,
                         AttrChain contextAttrs,
-                        String[] eventKeys, Object[] eventValues, int eventAttrCount,
+                        Object[] eventAttrs, int eventAttrCount,
                         Throwable throwable, long durationNanos, String callerFqcn) {
         if (asyncLogger) {
-            emitThroughAsyncLogger(level, message, contextAttrs, eventKeys, eventValues,
+            emitThroughAsyncLogger(level, message, contextAttrs, eventAttrs,
                     eventAttrCount, throwable, durationNanos, callerFqcn);
             return;
         }
@@ -244,7 +244,7 @@ final class Log4j2Logger extends BaseLogger {
             event.setLevel(toLog4j2Level(level));
             event.setMessage(log4j.getMessageFactory().newMessage(message));
             event.setThrown(throwable);
-            event.setContextData(buildContextData(pooled, contextAttrs, eventKeys, eventValues,
+            event.setContextData(buildContextData(pooled, contextAttrs, eventAttrs,
                     eventAttrCount, durationNanos));
             event.setTimeMillis(clock.millis());
 
@@ -272,7 +272,7 @@ final class Log4j2Logger extends BaseLogger {
      * returns, so the restore in {@code finally} cannot race with delivery.
      */
     private void emitThroughAsyncLogger(Level level, String message, AttrChain contextAttrs,
-                                        String[] eventKeys, Object[] eventValues, int eventAttrCount,
+                                        Object[] eventAttrs, int eventAttrCount,
                                         Throwable throwable, long durationNanos, String callerFqcn) {
         org.apache.logging.log4j.Level log4jLevel = toLog4j2Level(level);
         if (!hasContext(contextAttrs, eventAttrCount, durationNanos)) {
@@ -290,8 +290,8 @@ final class Log4j2Logger extends BaseLogger {
             attrs.put(attr.key(), attr.valueAsString());
         }
         for (int i = 0; i < eventAttrCount; i++) {
-            Object resolved = Attr.resolveValue(eventValues[i]);
-            attrs.put(eventKeys[i], resolved == null ? null : String.valueOf(resolved));
+            Object resolved = Attr.resolveValue(eventAttrs[i * 2 + 1]);
+            attrs.put((String) eventAttrs[i * 2], resolved == null ? null : String.valueOf(resolved));
         }
         if (durationNanos >= 0) {
             attrs.put("durationMs", String.valueOf(durationNanos / 1_000_000));
@@ -311,7 +311,7 @@ final class Log4j2Logger extends BaseLogger {
     }
 
     private static StringMap buildContextData(PooledEmitState pooled, AttrChain contextAttrs,
-                                              String[] eventKeys, Object[] eventValues,
+                                              Object[] eventAttrs,
                                               int eventAttrCount, long durationNanos) {
         // Fast path: empty MDC and no slog attrs — share a single frozen instance,
         // no allocation, no map clear.
@@ -340,7 +340,7 @@ final class Log4j2Logger extends BaseLogger {
             map.putValue(attr.key(), attr.value());
         }
         for (int i = 0; i < eventAttrCount; i++) {
-            map.putValue(eventKeys[i], Attr.resolveValue(eventValues[i]));
+            map.putValue((String) eventAttrs[i * 2], Attr.resolveValue(eventAttrs[i * 2 + 1]));
         }
         if (durationNanos >= 0) {
             map.putValue("durationMs", durationNanos / 1_000_000);

@@ -58,12 +58,15 @@ abstract class BaseLogger implements Logger {
     protected abstract boolean isErrorEnabled();
 
     /**
-     * Emits a log record. {@code durationNanos} is the elapsed time recorded by
-     * {@link Event#timed()}, or {@code -1} when the event was not timed.
+     * Emits a log record. {@code eventAttrs} holds the per-event attributes as
+     * interleaved {@code {key, value, key, value, ...}} pairs and
+     * {@code eventAttrCount} is the number of pairs. {@code durationNanos} is the
+     * elapsed time recorded by {@link Event#timed()}, or {@code -1} when the event
+     * was not timed.
      */
     protected abstract void emit(String loggerName, Level level, String message,
                                    AttrChain contextAttrs,
-                                   String[] eventKeys, Object[] eventValues, int eventAttrCount,
+                                   Object[] eventAttrs, int eventAttrCount,
                                    Throwable throwable, long durationNanos, String callerFqcn);
 
     abstract Logger derive(AttrChain contextAttrs);
@@ -82,13 +85,13 @@ abstract class BaseLogger implements Logger {
     @Override
     public void trace(String msg) {
         if (!isTraceEnabled()) return;
-        emit(name, Level.TRACE, msg, contextAttrs, null, null, 0, null, -1, FQCN);
+        emit(name, Level.TRACE, msg, contextAttrs, null, 0, null, -1, FQCN);
     }
 
     @Override
     public void tracef(String format, Object... args) {
         if (!isTraceEnabled()) return;
-        emit(name, Level.TRACE, String.format(format, args), contextAttrs, null, null, 0, null, -1, FQCN);
+        emit(name, Level.TRACE, String.format(format, args), contextAttrs, null, 0, null, -1, FQCN);
     }
 
     @Override
@@ -106,13 +109,13 @@ abstract class BaseLogger implements Logger {
     @Override
     public void debug(String msg) {
         if (!isDebugEnabled()) return;
-        emit(name, Level.DEBUG, msg, contextAttrs, null, null, 0, null, -1, FQCN);
+        emit(name, Level.DEBUG, msg, contextAttrs, null, 0, null, -1, FQCN);
     }
 
     @Override
     public void debugf(String format, Object... args) {
         if (!isDebugEnabled()) return;
-        emit(name, Level.DEBUG, String.format(format, args), contextAttrs, null, null, 0, null, -1, FQCN);
+        emit(name, Level.DEBUG, String.format(format, args), contextAttrs, null, 0, null, -1, FQCN);
     }
 
     @Override
@@ -130,13 +133,13 @@ abstract class BaseLogger implements Logger {
     @Override
     public void info(String msg) {
         if (!isInfoEnabled()) return;
-        emit(name, Level.INFO, msg, contextAttrs, null, null, 0, null, -1, FQCN);
+        emit(name, Level.INFO, msg, contextAttrs, null, 0, null, -1, FQCN);
     }
 
     @Override
     public void infof(String format, Object... args) {
         if (!isInfoEnabled()) return;
-        emit(name, Level.INFO, String.format(format, args), contextAttrs, null, null, 0, null, -1, FQCN);
+        emit(name, Level.INFO, String.format(format, args), contextAttrs, null, 0, null, -1, FQCN);
     }
 
     @Override
@@ -154,13 +157,13 @@ abstract class BaseLogger implements Logger {
     @Override
     public void warn(String msg) {
         if (!isWarnEnabled()) return;
-        emit(name, Level.WARN, msg, contextAttrs, null, null, 0, null, -1, FQCN);
+        emit(name, Level.WARN, msg, contextAttrs, null, 0, null, -1, FQCN);
     }
 
     @Override
     public void warnf(String format, Object... args) {
         if (!isWarnEnabled()) return;
-        emit(name, Level.WARN, String.format(format, args), contextAttrs, null, null, 0, null, -1, FQCN);
+        emit(name, Level.WARN, String.format(format, args), contextAttrs, null, 0, null, -1, FQCN);
     }
 
     @Override
@@ -178,13 +181,13 @@ abstract class BaseLogger implements Logger {
     @Override
     public void error(String msg) {
         if (!isErrorEnabled()) return;
-        emit(name, Level.ERROR, msg, contextAttrs, null, null, 0, null, -1, FQCN);
+        emit(name, Level.ERROR, msg, contextAttrs, null, 0, null, -1, FQCN);
     }
 
     @Override
     public void errorf(String format, Object... args) {
         if (!isErrorEnabled()) return;
-        emit(name, Level.ERROR, String.format(format, args), contextAttrs, null, null, 0, null, -1, FQCN);
+        emit(name, Level.ERROR, String.format(format, args), contextAttrs, null, 0, null, -1, FQCN);
     }
 
     @Override

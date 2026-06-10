@@ -59,7 +59,7 @@ final class TestLogger extends BaseLogger {
     @Override
     protected void emit(String loggerName, Level level, String message,
                         AttrChain contextAttrs,
-                        String[] eventKeys, Object[] eventValues, int eventAttrCount,
+                        Object[] eventAttrs, int eventAttrCount,
                         Throwable throwable, long durationNanos, String callerFqcn) {
         // Reconstruct a snapshot list of Attr for test assertions
         var attrs = new ArrayList<Attr>();
@@ -67,7 +67,7 @@ final class TestLogger extends BaseLogger {
             attrs.add(contextAttrs.get(i));
         }
         for (int i = 0; i < eventAttrCount; i++) {
-            attrs.add(new Attr(eventKeys[i], Attr.resolveValue(eventValues[i])));
+            attrs.add(new Attr((String) eventAttrs[i * 2], Attr.resolveValue(eventAttrs[i * 2 + 1])));
         }
         Duration duration = durationNanos < 0 ? null : Duration.ofNanos(durationNanos);
         sink.add(new LogRecord(loggerName, level, message, attrs, throwable, duration, callerFqcn));
