@@ -20,7 +20,6 @@ import io.github.merlimat.slog.Logger;
 import io.github.merlimat.slog.ThrowingSupplier;
 import java.time.Clock;
 import java.time.Duration;
-import java.time.Instant;
 import java.util.Arrays;
 
 final class EventImpl implements Event {
@@ -35,7 +34,8 @@ final class EventImpl implements Event {
     private Object[] attrValues;
     private int attrCount;
     private Throwable throwable;
-    private Instant startTime;
+    private boolean timed;
+    private long startNanos;
     private AttrChain extraContext = AttrChain.EMPTY;
 
     EventImpl(BaseLogger logger, Level level, Clock clock) {
@@ -120,7 +120,8 @@ final class EventImpl implements Event {
 
     @Override
     public Event timed() {
-        this.startTime = clock.instant();
+        this.timed = true;
+        this.startNanos = logger.nanoTime();
         return this;
     }
 
@@ -171,9 +172,9 @@ final class EventImpl implements Event {
     }
 
     private void emit(String msg) {
-        Duration duration = startTime != null
-                ? Duration.between(startTime, clock.instant())
-                : null;
+        long durationNanos = timed
+                ? Math.max(0, logger.nanoTime() - startNanos)
+                : -1;
 
         AttrChain contextAttrs = extraContext.isEmpty()
                 ? logger.contextAttrs()
@@ -182,6 +183,6 @@ final class EventImpl implements Event {
         logger.emit(logger.name(), level, msg,
                 contextAttrs,
                 attrKeys, attrValues, attrCount,
-                throwable, duration, FQCN);
+                throwable, durationNanos, FQCN);
     }
 }

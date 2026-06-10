@@ -18,7 +18,6 @@ package io.github.merlimat.slog.impl;
 import io.github.merlimat.slog.Logger;
 
 import java.time.Clock;
-import java.time.Duration;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 
@@ -58,10 +57,10 @@ final class Slf4jLogger extends BaseLogger {
     protected void emit(String loggerName, Level level, String message,
                         AttrChain contextAttrs,
                         String[] eventKeys, Object[] eventValues, int eventAttrCount,
-                        Throwable throwable, Duration duration, String callerFqcn) {
-        if (hasContext(contextAttrs, eventAttrCount, duration)) {
+                        Throwable throwable, long durationNanos, String callerFqcn) {
+        if (hasContext(contextAttrs, eventAttrCount, durationNanos)) {
             emitWithMdc(level, message, contextAttrs, eventKeys, eventValues, eventAttrCount,
-                    throwable, duration);
+                    throwable, durationNanos);
         } else {
             emitPlain(level, message, throwable);
         }
@@ -79,7 +78,7 @@ final class Slf4jLogger extends BaseLogger {
 
     private void emitWithMdc(Level level, String msg, AttrChain contextAttrs,
                              String[] eventKeys, Object[] eventValues, int eventAttrCount,
-                             Throwable throwable, Duration duration) {
+                             Throwable throwable, long durationNanos) {
         var saved = MDC.getCopyOfContextMap();
         try {
             for (Attr attr : contextAttrs) {
@@ -89,8 +88,8 @@ final class Slf4jLogger extends BaseLogger {
                 Object resolved = Attr.resolveValue(eventValues[i]);
                 MDC.put(eventKeys[i], resolved == null ? null : String.valueOf(resolved));
             }
-            if (duration != null) {
-                MDC.put("durationMs", String.valueOf(duration.toMillis()));
+            if (durationNanos >= 0) {
+                MDC.put("durationMs", String.valueOf(durationNanos / 1_000_000));
             }
             emitPlain(level, msg, throwable);
         } finally {

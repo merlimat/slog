@@ -19,7 +19,6 @@ import io.github.merlimat.slog.Logger;
 import java.lang.invoke.MethodHandles;
 import java.lang.invoke.VarHandle;
 import java.time.Clock;
-import java.time.Duration;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.logging.log4j.LogManager;
@@ -130,7 +129,7 @@ final class Log4j2Logger extends BaseLogger {
     protected void emit(String loggerName, Level level, String message,
                         AttrChain contextAttrs,
                         String[] eventKeys, Object[] eventValues, int eventAttrCount,
-                        Throwable throwable, Duration duration, String callerFqcn) {
+                        Throwable throwable, long durationNanos, String callerFqcn) {
         MutableLogEvent event = THREAD_LOCAL_EVENT.get();
         event.clear();
         event.setContextStack(org.apache.logging.log4j.ThreadContext.EMPTY_STACK);
@@ -140,7 +139,7 @@ final class Log4j2Logger extends BaseLogger {
         event.setLevel(toLog4j2Level(level));
         event.setMessage(log4j.getMessageFactory().newMessage(message));
         event.setThrown(throwable);
-        event.setContextData(buildContextData(contextAttrs, eventKeys, eventValues, eventAttrCount, duration));
+        event.setContextData(buildContextData(contextAttrs, eventKeys, eventValues, eventAttrCount, durationNanos));
         event.setTimeMillis(clock.millis());
 
         Thread currentThread = Thread.currentThread();
@@ -154,11 +153,11 @@ final class Log4j2Logger extends BaseLogger {
 
     private static StringMap buildContextData(AttrChain contextAttrs,
                                               String[] eventKeys, Object[] eventValues,
-                                              int eventAttrCount, Duration duration) {
+                                              int eventAttrCount, long durationNanos) {
         // Fast path: empty MDC and no slog attrs — share a single frozen instance,
         // no allocation, no map clear.
         boolean mdcEmpty = ThreadContext.isEmpty();
-        if (mdcEmpty && !hasContext(contextAttrs, eventAttrCount, duration)) {
+        if (mdcEmpty && !hasContext(contextAttrs, eventAttrCount, durationNanos)) {
             return ContextDataFactory.emptyFrozenContextData();
         }
 
@@ -178,8 +177,8 @@ final class Log4j2Logger extends BaseLogger {
         for (int i = 0; i < eventAttrCount; i++) {
             map.putValue(eventKeys[i], Attr.resolveValue(eventValues[i]));
         }
-        if (duration != null) {
-            map.putValue("durationMs", duration.toMillis());
+        if (durationNanos >= 0) {
+            map.putValue("durationMs", durationNanos / 1_000_000);
         }
         return map;
     }

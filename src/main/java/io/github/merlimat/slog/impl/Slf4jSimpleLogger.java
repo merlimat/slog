@@ -17,7 +17,6 @@ package io.github.merlimat.slog.impl;
 
 import io.github.merlimat.slog.Logger;
 import java.time.Clock;
-import java.time.Duration;
 import org.slf4j.LoggerFactory;
 
 /**
@@ -56,9 +55,9 @@ final class Slf4jSimpleLogger extends BaseLogger {
     protected void emit(String loggerName, Level level, String message,
                         AttrChain contextAttrs,
                         String[] eventKeys, Object[] eventValues, int eventAttrCount,
-                        Throwable throwable, Duration duration, String callerFqcn) {
-        String msg = hasContext(contextAttrs, eventAttrCount, duration)
-                ? formatMessage(message, contextAttrs, eventKeys, eventValues, eventAttrCount, duration)
+                        Throwable throwable, long durationNanos, String callerFqcn) {
+        String msg = hasContext(contextAttrs, eventAttrCount, durationNanos)
+                ? formatMessage(message, contextAttrs, eventKeys, eventValues, eventAttrCount, durationNanos)
                 : message;
         switch (level) {
             case TRACE -> { if (throwable != null) slf4j.trace(msg, throwable); else slf4j.trace(msg); }
@@ -76,7 +75,7 @@ final class Slf4jSimpleLogger extends BaseLogger {
 
     private static String formatMessage(String message, AttrChain contextAttrs,
                                         String[] eventKeys, Object[] eventValues,
-                                        int eventAttrCount, Duration duration) {
+                                        int eventAttrCount, long durationNanos) {
         var sb = new StringBuilder();
         sb.append(message);
         for (Attr attr : contextAttrs) {
@@ -85,8 +84,8 @@ final class Slf4jSimpleLogger extends BaseLogger {
         for (int i = 0; i < eventAttrCount; i++) {
             sb.append(' ').append(eventKeys[i]).append('=').append(Attr.resolveValue(eventValues[i]));
         }
-        if (duration != null) {
-            sb.append(" durationMs=").append(duration.toMillis());
+        if (durationNanos >= 0) {
+            sb.append(" durationMs=").append(durationNanos / 1_000_000);
         }
         return sb.toString();
     }

@@ -79,6 +79,11 @@ public class LoggingBenchmark {
     }
 
     @Benchmark
+    public void slogTimed_enabled() {
+        slog.info().timed().log("Request processed");
+    }
+
+    @Benchmark
     public void slf4jSimple_enabled() {
         slf4j.info("Request processed");
     }
