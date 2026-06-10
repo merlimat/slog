@@ -60,6 +60,7 @@ tasks.test {
     }
     // These run in their own tasks with a modified environment
     exclude("**/AsyncLoggerModeTest*")
+    exclude("**/MixedAsyncModeTest*")
     exclude("**/NoDisruptorTest*")
 }
 
@@ -79,6 +80,17 @@ val asyncLoggerTest = tasks.register<Test>("asyncLoggerTest") {
     }
 }
 
+val mixedAsyncTest = tasks.register<Test>("mixedAsyncTest") {
+    description = "Runs tests with AsyncLoggerConfig (mixed async) and thread-locals disabled"
+    group = "verification"
+    useJUnitPlatform()
+    testClassesDirs = sourceSets.test.get().output.classesDirs
+    classpath = sourceSets.test.get().runtimeClasspath
+    include("**/MixedAsyncModeTest*")
+    systemProperty("log4j2.enable.threadlocals", "false")
+    systemProperty("log4j2.configurationFile", "classpath:log4j2-async-root-test.xml")
+}
+
 val noDisruptorTest = tasks.register<Test>("noDisruptorTest") {
     description = "Runs tests without the LMAX Disruptor on the classpath"
     group = "verification"
@@ -90,6 +102,7 @@ val noDisruptorTest = tasks.register<Test>("noDisruptorTest") {
 
 tasks.check {
     dependsOn(asyncLoggerTest)
+    dependsOn(mixedAsyncTest)
     dependsOn(noDisruptorTest)
 }
 

@@ -27,6 +27,7 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.ThreadContext;
 import org.apache.logging.log4j.core.LoggerContext;
 import org.apache.logging.log4j.core.async.AsyncLogger;
+import org.apache.logging.log4j.core.util.Constants;
 import org.apache.logging.log4j.core.config.LoggerConfig;
 import org.apache.logging.log4j.core.impl.ContextDataFactory;
 import org.apache.logging.log4j.core.impl.MutableLogEvent;
@@ -59,6 +60,18 @@ final class Log4j2Logger extends BaseLogger {
         ((LoggerContext) LogManager.getContext(false))
                 .addPropertyChangeListener(evt -> GENERATION.incrementAndGet());
     }
+
+    /**
+     * Mirrors log4j2's own event-factory selection ({@code LoggerConfig} uses
+     * {@code ReusableLogEventFactory} only when thread-locals are enabled): events and
+     * context maps are pooled in ThreadLocals only in that mode. With thread-locals
+     * disabled (the default in web-app deployments), {@code AsyncLoggerConfig} enqueues
+     * events <b>by reference</b>, so a reused event would be cleared and repopulated by
+     * the application thread while the background thread still reads it — corrupting
+     * log records. A fresh event per call keeps that configuration safe, exactly like
+     * log4j2's own {@code DefaultLogEventFactory}.
+     */
+    private static final boolean POOL_EVENTS = Constants.ENABLE_THREADLOCALS;
 
     private static final ThreadLocal<MutableLogEvent> THREAD_LOCAL_EVENT =
             ThreadLocal.withInitial(MutableLogEvent::new);
@@ -161,8 +174,13 @@ final class Log4j2Logger extends BaseLogger {
             return;
         }
 
-        MutableLogEvent event = THREAD_LOCAL_EVENT.get();
-        event.clear();
+        MutableLogEvent event;
+        if (POOL_EVENTS) {
+            event = THREAD_LOCAL_EVENT.get();
+            event.clear();
+        } else {
+            event = new MutableLogEvent();
+        }
         event.setContextStack(org.apache.logging.log4j.ThreadContext.EMPTY_STACK);
 
         event.setLoggerName(loggerName);
@@ -240,8 +258,13 @@ final class Log4j2Logger extends BaseLogger {
             return ContextDataFactory.emptyFrozenContextData();
         }
 
-        var map = THREAD_LOCAL_CTX.get();
-        map.clear();
+        StringMap map;
+        if (POOL_EVENTS) {
+            map = THREAD_LOCAL_CTX.get();
+            map.clear();
+        } else {
+            map = new SortedArrayStringMap();
+        }
         if (!mdcEmpty) {
             // Inject log4j2 ThreadContext (MDC) so appenders / patterns that read
             // from event.getContextData() see the caller's MDC. getImmutableContext()
