@@ -25,14 +25,14 @@ import java.util.Arrays;
 final class EventImpl implements Event {
     static final String FQCN = EventImpl.class.getName();
 
-    private static final int INITIAL_CAPACITY = 4;
+    private static final int INITIAL_CAPACITY = 8; // 4 pairs
 
     private final BaseLogger logger;
     private final Level level;
     private final Clock clock;
-    private String[] attrKeys;
-    private Object[] attrValues;
-    private int attrCount;
+    /** Per-event attributes, interleaved as {@code {key, value, key, value, ...}}. */
+    private Object[] attrs;
+    private int attrCount; // number of key-value pairs
     private Throwable throwable;
     private boolean timed;
     private long startNanos;
@@ -46,16 +46,14 @@ final class EventImpl implements Event {
 
     @Override
     public Event attr(String key, Object value) {
-        if (attrKeys == null) {
-            attrKeys = new String[INITIAL_CAPACITY];
-            attrValues = new Object[INITIAL_CAPACITY];
-        } else if (attrCount == attrKeys.length) {
-            int newCap = attrKeys.length * 2;
-            attrKeys = Arrays.copyOf(attrKeys, newCap);
-            attrValues = Arrays.copyOf(attrValues, newCap);
+        int slot = attrCount * 2;
+        if (attrs == null) {
+            attrs = new Object[INITIAL_CAPACITY];
+        } else if (slot == attrs.length) {
+            attrs = Arrays.copyOf(attrs, slot * 2);
         }
-        attrKeys[attrCount] = key;
-        attrValues[attrCount] = value;
+        attrs[slot] = key;
+        attrs[slot + 1] = value;
         attrCount++;
         return this;
     }
@@ -182,7 +180,7 @@ final class EventImpl implements Event {
 
         logger.emit(logger.name(), level, msg,
                 contextAttrs,
-                attrKeys, attrValues, attrCount,
+                attrs, attrCount,
                 throwable, durationNanos, FQCN);
     }
 }

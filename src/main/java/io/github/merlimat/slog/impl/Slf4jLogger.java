@@ -57,10 +57,10 @@ final class Slf4jLogger extends BaseLogger {
     @Override
     protected void emit(String loggerName, Level level, String message,
                         AttrChain contextAttrs,
-                        String[] eventKeys, Object[] eventValues, int eventAttrCount,
+                        Object[] eventAttrs, int eventAttrCount,
                         Throwable throwable, long durationNanos, String callerFqcn) {
         if (hasContext(contextAttrs, eventAttrCount, durationNanos)) {
-            emitWithMdc(level, message, contextAttrs, eventKeys, eventValues, eventAttrCount,
+            emitWithMdc(level, message, contextAttrs, eventAttrs, eventAttrCount,
                     throwable, durationNanos);
         } else {
             emitPlain(level, message, throwable);
@@ -78,7 +78,7 @@ final class Slf4jLogger extends BaseLogger {
     }
 
     private void emitWithMdc(Level level, String msg, AttrChain contextAttrs,
-                             String[] eventKeys, Object[] eventValues, int eventAttrCount,
+                             Object[] eventAttrs, int eventAttrCount,
                              Throwable throwable, long durationNanos) {
         // Save and restore only the keys this event writes: copying the whole MDC
         // map (and restoring it with another full copy) scales with the ambient MDC
@@ -91,8 +91,8 @@ final class Slf4jLogger extends BaseLogger {
                 mdc.put(attr.key(), attr.valueAsString());
             }
             for (int i = 0; i < eventAttrCount; i++) {
-                Object resolved = Attr.resolveValue(eventValues[i]);
-                mdc.put(eventKeys[i], resolved == null ? null : String.valueOf(resolved));
+                Object resolved = Attr.resolveValue(eventAttrs[i * 2 + 1]);
+                mdc.put((String) eventAttrs[i * 2], resolved == null ? null : String.valueOf(resolved));
             }
             if (durationNanos >= 0) {
                 mdc.put("durationMs", String.valueOf(durationNanos / 1_000_000));

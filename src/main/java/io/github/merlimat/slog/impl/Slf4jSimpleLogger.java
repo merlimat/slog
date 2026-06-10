@@ -54,10 +54,10 @@ final class Slf4jSimpleLogger extends BaseLogger {
     @Override
     protected void emit(String loggerName, Level level, String message,
                         AttrChain contextAttrs,
-                        String[] eventKeys, Object[] eventValues, int eventAttrCount,
+                        Object[] eventAttrs, int eventAttrCount,
                         Throwable throwable, long durationNanos, String callerFqcn) {
         String msg = hasContext(contextAttrs, eventAttrCount, durationNanos)
-                ? formatMessage(message, contextAttrs, eventKeys, eventValues, eventAttrCount, durationNanos)
+                ? formatMessage(message, contextAttrs, eventAttrs, eventAttrCount, durationNanos)
                 : message;
         switch (level) {
             case TRACE -> { if (throwable != null) slf4j.trace(msg, throwable); else slf4j.trace(msg); }
@@ -74,7 +74,7 @@ final class Slf4jSimpleLogger extends BaseLogger {
     }
 
     private static String formatMessage(String message, AttrChain contextAttrs,
-                                        String[] eventKeys, Object[] eventValues,
+                                        Object[] eventAttrs,
                                         int eventAttrCount, long durationNanos) {
         var sb = new StringBuilder();
         sb.append(message);
@@ -83,7 +83,7 @@ final class Slf4jSimpleLogger extends BaseLogger {
             sb.append(' ').append(attr.key()).append('=').append(attr.valueAsString());
         }
         for (int i = 0; i < eventAttrCount; i++) {
-            sb.append(' ').append(eventKeys[i]).append('=').append(Attr.resolveValue(eventValues[i]));
+            sb.append(' ').append(eventAttrs[i * 2]).append('=').append(Attr.resolveValue(eventAttrs[i * 2 + 1]));
         }
         if (durationNanos >= 0) {
             sb.append(" durationMs=").append(durationNanos / 1_000_000);
