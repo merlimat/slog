@@ -73,11 +73,22 @@ final class Log4j2Logger extends BaseLogger {
      */
     private static final boolean POOL_EVENTS = Constants.ENABLE_THREADLOCALS;
 
-    private static final ThreadLocal<MutableLogEvent> THREAD_LOCAL_EVENT =
-            ThreadLocal.withInitial(MutableLogEvent::new);
+    /**
+     * Per-thread pooled emit state: the reusable event, its context map, and a flag
+     * marking them in use. If user code logs through slog while an emit is already in
+     * flight on the same thread — e.g. an attr supplier that logs, or a reentrant
+     * appender — the nested emit must not clear the pooled instances mid-flight, so it
+     * falls back to fresh allocations instead (the same protection log4j2's own
+     * {@code ReusableLogEventFactory} gets from its {@code reserved} flag).
+     */
+    private static final class PooledEmitState {
+        final MutableLogEvent event = new MutableLogEvent();
+        final SortedArrayStringMap contextData = new SortedArrayStringMap();
+        boolean inUse;
+    }
 
-    private static final ThreadLocal<StringMap> THREAD_LOCAL_CTX =
-            ThreadLocal.withInitial(SortedArrayStringMap::new);
+    private static final ThreadLocal<PooledEmitState> POOLED_STATE =
+            ThreadLocal.withInitial(PooledEmitState::new);
 
     /**
      * Whether the LMAX Disruptor is on the classpath. {@link AsyncLogger} implements a
@@ -174,30 +185,48 @@ final class Log4j2Logger extends BaseLogger {
             return;
         }
 
+        PooledEmitState pooled = null;
         MutableLogEvent event;
         if (POOL_EVENTS) {
-            event = THREAD_LOCAL_EVENT.get();
-            event.clear();
+            PooledEmitState state = POOLED_STATE.get();
+            if (!state.inUse) {
+                state.inUse = true;
+                pooled = state;
+                event = state.event;
+                event.clear();
+            } else {
+                // Reentrant emit: the pooled instances belong to an in-flight emit
+                // further up this thread's stack — use fresh ones.
+                event = new MutableLogEvent();
+            }
         } else {
             event = new MutableLogEvent();
         }
-        event.setContextStack(org.apache.logging.log4j.ThreadContext.EMPTY_STACK);
 
-        event.setLoggerName(loggerName);
-        event.setLoggerFqcn(callerFqcn);
-        event.setLevel(toLog4j2Level(level));
-        event.setMessage(log4j.getMessageFactory().newMessage(message));
-        event.setThrown(throwable);
-        event.setContextData(buildContextData(contextAttrs, eventKeys, eventValues, eventAttrCount, durationNanos));
-        event.setTimeMillis(clock.millis());
+        try {
+            event.setContextStack(org.apache.logging.log4j.ThreadContext.EMPTY_STACK);
 
-        Thread currentThread = Thread.currentThread();
-        event.setThreadName(currentThread.getName());
-        // event.setThreadId(currentThread.threadId()); // Only available in java >= 19
-        event.setThreadPriority(currentThread.getPriority());
+            event.setLoggerName(loggerName);
+            event.setLoggerFqcn(callerFqcn);
+            event.setLevel(toLog4j2Level(level));
+            event.setMessage(log4j.getMessageFactory().newMessage(message));
+            event.setThrown(throwable);
+            event.setContextData(buildContextData(pooled, contextAttrs, eventKeys, eventValues,
+                    eventAttrCount, durationNanos));
+            event.setTimeMillis(clock.millis());
 
-        LoggerConfig loggerConfig = log4j.get();
-        loggerConfig.log(event);
+            Thread currentThread = Thread.currentThread();
+            event.setThreadName(currentThread.getName());
+            // event.setThreadId(currentThread.threadId()); // Only available in java >= 19
+            event.setThreadPriority(currentThread.getPriority());
+
+            LoggerConfig loggerConfig = log4j.get();
+            loggerConfig.log(event);
+        } finally {
+            if (pooled != null) {
+                pooled.inUse = false;
+            }
+        }
     }
 
     /**
@@ -249,7 +278,7 @@ final class Log4j2Logger extends BaseLogger {
         }
     }
 
-    private static StringMap buildContextData(AttrChain contextAttrs,
+    private static StringMap buildContextData(PooledEmitState pooled, AttrChain contextAttrs,
                                               String[] eventKeys, Object[] eventValues,
                                               int eventAttrCount, long durationNanos) {
         // Fast path: empty MDC and no slog attrs — share a single frozen instance,
@@ -260,8 +289,8 @@ final class Log4j2Logger extends BaseLogger {
         }
 
         StringMap map;
-        if (POOL_EVENTS) {
-            map = THREAD_LOCAL_CTX.get();
+        if (pooled != null) {
+            map = pooled.contextData;
             map.clear();
         } else {
             map = new SortedArrayStringMap();
