@@ -225,8 +225,7 @@ final class Log4j2Logger extends BaseLogger {
             if (!state.inUse) {
                 state.inUse = true;
                 pooled = state;
-                event = state.event;
-                event.clear();
+                event = state.event; // cleared at release, see finally below
             } else {
                 // Reentrant emit: the pooled instances belong to an in-flight emit
                 // further up this thread's stack — use fresh ones.
@@ -256,6 +255,11 @@ final class Log4j2Logger extends BaseLogger {
             loggerConfig.log(event);
         } finally {
             if (pooled != null) {
+                // Clear at release rather than at the next claim, so the throwable,
+                // message and context-map references do not stay reachable from the
+                // thread-local while the thread is idle (same as log4j2's own
+                // ReusableLogEventFactory.release()).
+                event.clear();
                 pooled.inUse = false;
             }
         }
