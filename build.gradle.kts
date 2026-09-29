@@ -38,7 +38,7 @@ dependencies {
     testImplementation("org.apache.logging.log4j:log4j-slf4j2-impl:$log4j2Version")
     testImplementation("com.fasterxml.jackson.core:jackson-databind:$jacksonVersion")
     // Required by AsyncLoggerContextSelector in the asyncLoggerTest task
-    testRuntimeOnly("com.lmax:disruptor:3.4.4")
+    testRuntimeOnly("com.lmax:disruptor:4.0.0")
 
     nmcpAggregation(project(":"))
 }
