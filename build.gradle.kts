@@ -26,6 +26,10 @@ repositories {
     mavenCentral()
 }
 
+// log4j-api + log4j-to-slf4j without log4j-core, loaded in an isolated classloader
+// by LoggerDiscoveryBridgeTest (it would hijack Log4j2 on the main test classpath).
+val log4jToSlf4jClasspath: Configuration by configurations.creating
+
 dependencies {
     compileOnly("org.slf4j:slf4j-api:$slf4jVersion")
     compileOnly("org.apache.logging.log4j:log4j-core:$log4j2Version")
@@ -41,6 +45,8 @@ dependencies {
     testRuntimeOnly("com.lmax:disruptor:4.0.0")
 
     nmcpAggregation(project(":"))
+
+    log4jToSlf4jClasspath("org.apache.logging.log4j:log4j-to-slf4j:$log4j2Version")
 }
 
 tasks.register("benchmark") {
@@ -55,6 +61,9 @@ tasks.javadoc {
 
 tasks.test {
     useJUnitPlatform()
+    inputs.files(log4jToSlf4jClasspath)
+    systemProperty("slog.test.mainClasses", sourceSets.main.get().output.classesDirs.asPath)
+    systemProperty("slog.test.log4jToSlf4jClasspath", log4jToSlf4jClasspath.asPath)
     testLogging {
         showStandardStreams = true
     }
