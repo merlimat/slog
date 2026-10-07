@@ -25,7 +25,8 @@ import java.time.Clock;
  *
  * <p>Discovery order:
  * <ol>
- *   <li>Log4j2 — if {@code org.apache.logging.log4j.LogManager} is on the classpath</li>
+ *   <li>Log4j2 — if log4j-core is on the classpath and is the active Log4j API
+ *       provider (not, e.g., the {@code log4j-to-slf4j} bridge)</li>
  *   <li>SLF4J — if {@code org.slf4j.LoggerFactory} is on the classpath;
  *       uses a simple-logger variant when {@code slf4j-simple} is detected
  *       (since it does not render MDC)</li>
@@ -69,10 +70,8 @@ public class LoggerDiscovery {
     }
 
     private static Backend discoverBackend() {
-        try {
-            Class.forName("org.apache.logging.log4j.LogManager");
+        if (isLog4j2Core()) {
             return Backend.LOG4J2;
-        } catch (ClassNotFoundException ignored) {
         }
 
         try {
@@ -86,6 +85,20 @@ public class LoggerDiscovery {
 
         throw new IllegalStateException(
                 "No supported logging backend found. Add Log4j2 or SLF4J to the classpath.");
+    }
+
+    private static boolean isLog4j2Core() {
+        // log4j-api alone is not enough: with a bridge such as log4j-to-slf4j,
+        // log4j-core is absent or not the active provider.
+        try {
+            Class<?> coreContext = Class.forName("org.apache.logging.log4j.core.LoggerContext");
+            Object context = Class.forName("org.apache.logging.log4j.LogManager")
+                    .getMethod("getContext", boolean.class)
+                    .invoke(null, false);
+            return coreContext.isInstance(context);
+        } catch (ReflectiveOperationException | LinkageError ignored) {
+            return false;
+        }
     }
 
     private static boolean isSlf4jSimple() {
