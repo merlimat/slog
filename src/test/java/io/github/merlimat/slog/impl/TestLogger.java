@@ -50,19 +50,26 @@ final class TestLogger extends BaseLogger {
     @Override protected boolean isWarnEnabled()  { return enabledLevels.contains(Level.WARN); }
     @Override protected boolean isErrorEnabled() { return enabledLevels.contains(Level.ERROR); }
 
+    /** Derives monotonic time from the injected clock so tests can control durations. */
+    @Override
+    long nanoTime() {
+        return clock.millis() * 1_000_000;
+    }
+
     @Override
     protected void emit(String loggerName, Level level, String message,
                         AttrChain contextAttrs,
-                        String[] eventKeys, Object[] eventValues, int eventAttrCount,
-                        Throwable throwable, Duration duration, String callerFqcn) {
+                        Object[] eventAttrs, int eventAttrCount,
+                        Throwable throwable, long durationNanos, String callerFqcn) {
         // Reconstruct a snapshot list of Attr for test assertions
         var attrs = new ArrayList<Attr>();
-        for (Attr attr : contextAttrs) {
-            attrs.add(attr);
+        for (int i = 0; i < contextAttrs.size(); i++) {
+            attrs.add(contextAttrs.get(i));
         }
         for (int i = 0; i < eventAttrCount; i++) {
-            attrs.add(new Attr(eventKeys[i], Attr.resolveValue(eventValues[i])));
+            attrs.add(new Attr((String) eventAttrs[i * 2], Attr.resolveValue(eventAttrs[i * 2 + 1])));
         }
+        Duration duration = durationNanos < 0 ? null : Duration.ofNanos(durationNanos);
         sink.add(new LogRecord(loggerName, level, message, attrs, throwable, duration, callerFqcn));
     }
 

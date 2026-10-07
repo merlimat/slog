@@ -26,6 +26,10 @@ repositories {
     mavenCentral()
 }
 
+// log4j-api + log4j-to-slf4j without log4j-core, loaded in an isolated classloader
+// by LoggerDiscoveryBridgeTest (it would hijack Log4j2 on the main test classpath).
+val log4jToSlf4jClasspath: Configuration by configurations.creating
+
 dependencies {
     compileOnly("org.slf4j:slf4j-api:$slf4jVersion")
     compileOnly("org.apache.logging.log4j:log4j-core:$log4j2Version")
@@ -37,8 +41,12 @@ dependencies {
     testImplementation("org.apache.logging.log4j:log4j-core:$log4j2Version")
     testImplementation("org.apache.logging.log4j:log4j-slf4j2-impl:$log4j2Version")
     testImplementation("com.fasterxml.jackson.core:jackson-databind:$jacksonVersion")
+    // Required by AsyncLoggerContextSelector in the asyncLoggerTest task
+    testRuntimeOnly("com.lmax:disruptor:4.0.0")
 
     nmcpAggregation(project(":"))
+
+    log4jToSlf4jClasspath("org.apache.logging.log4j:log4j-to-slf4j:$log4j2Version")
 }
 
 tasks.register("benchmark") {
@@ -53,9 +61,58 @@ tasks.javadoc {
 
 tasks.test {
     useJUnitPlatform()
+    inputs.files(log4jToSlf4jClasspath)
+    systemProperty("slog.test.mainClasses", sourceSets.main.get().output.classesDirs.asPath)
+    systemProperty("slog.test.log4jToSlf4jClasspath", log4jToSlf4jClasspath.asPath)
     testLogging {
         showStandardStreams = true
     }
+    // These run in their own tasks with a modified environment
+    exclude("**/AsyncLoggerModeTest*")
+    exclude("**/MixedAsyncModeTest*")
+    exclude("**/NoDisruptorTest*")
+}
+
+val asyncLoggerTest = tasks.register<Test>("asyncLoggerTest") {
+    description = "Runs tests that require the full-async Log4j2 context selector"
+    group = "verification"
+    useJUnitPlatform()
+    testClassesDirs = sourceSets.test.get().output.classesDirs
+    classpath = sourceSets.test.get().runtimeClasspath
+    include("**/AsyncLoggerModeTest*")
+    systemProperty(
+        "log4j2.contextSelector",
+        "org.apache.logging.log4j.core.async.AsyncLoggerContextSelector"
+    )
+    testLogging {
+        showStandardStreams = true
+    }
+}
+
+val mixedAsyncTest = tasks.register<Test>("mixedAsyncTest") {
+    description = "Runs tests with AsyncLoggerConfig (mixed async) and thread-locals disabled"
+    group = "verification"
+    useJUnitPlatform()
+    testClassesDirs = sourceSets.test.get().output.classesDirs
+    classpath = sourceSets.test.get().runtimeClasspath
+    include("**/MixedAsyncModeTest*")
+    systemProperty("log4j2.enable.threadlocals", "false")
+    systemProperty("log4j2.configurationFile", "classpath:log4j2-async-root-test.xml")
+}
+
+val noDisruptorTest = tasks.register<Test>("noDisruptorTest") {
+    description = "Runs tests without the LMAX Disruptor on the classpath"
+    group = "verification"
+    useJUnitPlatform()
+    testClassesDirs = sourceSets.test.get().output.classesDirs
+    classpath = sourceSets.test.get().runtimeClasspath.filter { !it.name.startsWith("disruptor") }
+    include("**/NoDisruptorTest*")
+}
+
+tasks.check {
+    dependsOn(asyncLoggerTest)
+    dependsOn(mixedAsyncTest)
+    dependsOn(noDisruptorTest)
 }
 
 publishing {

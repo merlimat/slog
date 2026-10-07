@@ -15,43 +15,41 @@
  */
 package io.github.merlimat.slog.impl;
 
-import java.util.Collections;
-import java.util.Iterator;
+import java.util.Arrays;
 import java.util.List;
-import java.util.NoSuchElementException;
 
 /**
- * An immutable linked chain of attribute lists, used internally by {@link io.github.merlimat.slog.Logger}
- * to share parent context without copying.
+ * An immutable, flattened sequence of context attributes, used internally by
+ * {@link io.github.merlimat.slog.Logger}.
  *
- * <p>Each node holds its own small list of attrs and a pointer to the parent node.
- * Iteration yields all attrs in root-to-child order (parent attrs first).
+ * <p>Loggers are built once and emit many times, so derivation flattens the
+ * parent's attrs and the new ones into a single array up front: the emit path
+ * iterates by index with no per-event allocation. Attrs are kept in
+ * root-to-child order (parent attrs first).
  */
-final class AttrChain implements Iterable<Attr> {
+final class AttrChain {
 
-    public static final AttrChain EMPTY = new AttrChain(null, List.of());
+    public static final AttrChain EMPTY = new AttrChain(new Attr[0]);
 
-    private final AttrChain parent;
-    private final List<Attr> own;
+    private final Attr[] attrs;
 
-    private AttrChain(AttrChain parent, List<Attr> own) {
-        this.parent = parent;
-        this.own = own;
+    private AttrChain(Attr[] attrs) {
+        this.attrs = attrs;
     }
 
-    public AttrChain with(Attr attr) {
-        return new AttrChain(this, List.of(attr));
-    }
-
-    public AttrChain with(List<Attr> attrs) {
-        if (attrs.isEmpty()) {
+    public AttrChain with(List<Attr> more) {
+        if (more.isEmpty()) {
             return this;
         }
-        return new AttrChain(this, List.copyOf(attrs));
+        Attr[] result = Arrays.copyOf(attrs, attrs.length + more.size());
+        for (int i = 0; i < more.size(); i++) {
+            result[attrs.length + i] = more.get(i);
+        }
+        return new AttrChain(result);
     }
 
     /**
-     * Returns a new chain that has {@code other} as a prefix, followed by this chain's attrs.
+     * Returns a new chain with {@code other}'s attrs before this chain's attrs.
      * Used to adopt another logger's context.
      */
     public AttrChain withPrefix(AttrChain other) {
@@ -61,78 +59,20 @@ final class AttrChain implements Iterable<Attr> {
         if (this.isEmpty()) {
             return other;
         }
-        // Walk this chain to find the root, then graft other underneath
-        // Collect this chain's nodes (child → root), then rebuild with other as the base
-        int depth = 0;
-        for (AttrChain n = this; n != EMPTY; n = n.parent) {
-            depth++;
-        }
-        AttrChain[] nodes = new AttrChain[depth];
-        int i = depth - 1;
-        for (AttrChain n = this; n != EMPTY; n = n.parent) {
-            nodes[i--] = n;
-        }
-        // Rebuild: start from other, then layer each of this chain's nodes on top
-        AttrChain result = other;
-        for (AttrChain node : nodes) {
-            result = new AttrChain(result, node.own);
-        }
-        return result;
+        Attr[] result = Arrays.copyOf(other.attrs, other.attrs.length + attrs.length);
+        System.arraycopy(attrs, 0, result, other.attrs.length, attrs.length);
+        return new AttrChain(result);
     }
 
     public boolean isEmpty() {
-        return this == EMPTY;
+        return attrs.length == 0;
     }
 
-    @Override
-    public Iterator<Attr> iterator() {
-        if (this == EMPTY) {
-            return Collections.emptyIterator();
-        }
-
-        // Collect chain nodes into an array (child → root), then iterate root → child.
-        // Chain depth is typically very small (2-5 levels).
-        int depth = 0;
-        for (AttrChain n = this; n != EMPTY; n = n.parent) {
-            depth++;
-        }
-
-        AttrChain[] nodes = new AttrChain[depth];
-        int i = depth - 1;
-        for (AttrChain n = this; n != EMPTY; n = n.parent) {
-            nodes[i--] = n;
-        }
-
-        return new ChainIterator(nodes);
+    int size() {
+        return attrs.length;
     }
 
-    private static final class ChainIterator implements Iterator<Attr> {
-        private final AttrChain[] nodes;
-        private int nodeIndex;
-        private int attrIndex;
-
-        ChainIterator(AttrChain[] nodes) {
-            this.nodes = nodes;
-        }
-
-        @Override
-        public boolean hasNext() {
-            while (nodeIndex < nodes.length) {
-                if (attrIndex < nodes[nodeIndex].own.size()) {
-                    return true;
-                }
-                nodeIndex++;
-                attrIndex = 0;
-            }
-            return false;
-        }
-
-        @Override
-        public Attr next() {
-            if (!hasNext()) {
-                throw new NoSuchElementException();
-            }
-            return nodes[nodeIndex].own.get(attrIndex++);
-        }
+    Attr get(int index) {
+        return attrs[index];
     }
 }

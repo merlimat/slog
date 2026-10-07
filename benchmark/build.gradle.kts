@@ -28,6 +28,7 @@ dependencies {
 
 jmh {
     includes.addAll(providers.gradleProperty("jmhIncludes").map { listOf(it) }.orElse(emptyList()))
+    profilers.addAll(providers.gradleProperty("jmhProfilers").map { listOf(it) }.orElse(emptyList()))
 }
 
 tasks.register("benchmark") {
