@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Mixed-async configuration for MixedAsyncModeTest: the root logger is an
+     AsyncLoggerConfig, so events are enqueued to the disruptor and appenders
+     run on a background thread. -->
+<Configuration status="WARN">
+    <Appenders>
+        <Null name="NoOp"/>
+    </Appenders>
+    <Loggers>
+        <AsyncRoot level="info">
+            <AppenderRef ref="NoOp"/>
+        </AsyncRoot>
+    </Loggers>
+</Configuration>

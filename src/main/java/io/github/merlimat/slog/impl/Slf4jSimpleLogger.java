@@ -17,7 +17,6 @@ package io.github.merlimat.slog.impl;
 
 import io.github.merlimat.slog.Logger;
 import java.time.Clock;
-import java.time.Duration;
 import org.slf4j.LoggerFactory;
 
 /**
@@ -55,10 +54,10 @@ final class Slf4jSimpleLogger extends BaseLogger {
     @Override
     protected void emit(String loggerName, Level level, String message,
                         AttrChain contextAttrs,
-                        String[] eventKeys, Object[] eventValues, int eventAttrCount,
-                        Throwable throwable, Duration duration, String callerFqcn) {
-        String msg = hasContext(contextAttrs, eventAttrCount, duration)
-                ? formatMessage(message, contextAttrs, eventKeys, eventValues, eventAttrCount, duration)
+                        Object[] eventAttrs, int eventAttrCount,
+                        Throwable throwable, long durationNanos, String callerFqcn) {
+        String msg = hasContext(contextAttrs, eventAttrCount, durationNanos)
+                ? formatMessage(message, contextAttrs, eventAttrs, eventAttrCount, durationNanos)
                 : message;
         switch (level) {
             case TRACE -> { if (throwable != null) slf4j.trace(msg, throwable); else slf4j.trace(msg); }
@@ -75,18 +74,19 @@ final class Slf4jSimpleLogger extends BaseLogger {
     }
 
     private static String formatMessage(String message, AttrChain contextAttrs,
-                                        String[] eventKeys, Object[] eventValues,
-                                        int eventAttrCount, Duration duration) {
+                                        Object[] eventAttrs,
+                                        int eventAttrCount, long durationNanos) {
         var sb = new StringBuilder();
         sb.append(message);
-        for (Attr attr : contextAttrs) {
+        for (int i = 0; i < contextAttrs.size(); i++) {
+            Attr attr = contextAttrs.get(i);
             sb.append(' ').append(attr.key()).append('=').append(attr.valueAsString());
         }
         for (int i = 0; i < eventAttrCount; i++) {
-            sb.append(' ').append(eventKeys[i]).append('=').append(Attr.resolveValue(eventValues[i]));
+            sb.append(' ').append(eventAttrs[i * 2]).append('=').append(Attr.resolveValue(eventAttrs[i * 2 + 1]));
         }
-        if (duration != null) {
-            sb.append(" durationMs=").append(duration.toMillis());
+        if (durationNanos >= 0) {
+            sb.append(" durationMs=").append(durationNanos / 1_000_000);
         }
         return sb.toString();
     }
