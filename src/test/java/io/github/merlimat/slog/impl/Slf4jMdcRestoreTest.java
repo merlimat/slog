@@ -151,4 +151,37 @@ class Slf4jMdcRestoreTest {
             }
         }
     }
+
+    @Test
+    void nullAttrValueIsNotWrittenToMdc() {
+        Logger log = newSlf4jLogger().with().attr("channel", (Object) null).build();
+        log.info().attr("peer", (Object) null).log("hello");
+
+        var data = appender.events.get(0).getContextData();
+        // Not just a null value: the key must be absent, because MDC.put(key, null)
+        // throws on backends such as JBoss Log Manager / Quarkus.
+        assertFalse(data.containsKey("channel"), "null context attr must not reach the MDC");
+        assertFalse(data.containsKey("peer"), "null event attr must not reach the MDC");
+    }
+
+    @Test
+    void nullAttrValueHidesAmbientKeyAndRestoresIt() {
+        MDC.put("channel", "ambient");
+
+        Logger log = newSlf4jLogger();
+        log.info().attr("channel", (Object) null).log("hello");
+
+        assertFalse(appender.events.get(0).getContextData().containsKey("channel"),
+                "a null event attr must shadow the ambient value as absent");
+        assertEquals("ambient", MDC.get("channel"), "the ambient value must be restored");
+    }
+
+    @Test
+    void nullSupplierAttrIsNotWrittenToMdc() {
+        Logger log = newSlf4jLogger().with().attr("channel", () -> null).build();
+        log.info().log("hello");
+
+        assertFalse(appender.events.get(0).getContextData().containsKey("channel"),
+                "a supplier resolving to null must not reach the MDC");
+    }
 }

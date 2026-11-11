@@ -108,6 +108,9 @@ final class Slf4jLogger extends BaseLogger {
      * so the restore touches only those keys. A key that was absent before the call
      * is removed on restore; an ambient value that was explicitly {@code null} is
      * restored as absent — the two are indistinguishable through {@code MDC.get}.
+     *
+     * <p>A {@code null} attribute value removes the key rather than writing
+     * {@code null}, which not every SLF4J backend accepts.
      */
     private static final class MdcRestore {
         private String[] keys;
@@ -127,7 +130,15 @@ final class Slf4jLogger extends BaseLogger {
             keys[count] = key;
             prior[count] = MDC.get(key);
             count++;
-            MDC.put(key, value);
+            // Never MDC.put(key, null): the SLF4J contract permits a null value only
+            // where the backend supports it, and some — JBoss Log Manager, as used by
+            // Quarkus — throw, which would propagate out of the log call into the
+            // caller. A null-valued attr means "absent" for every reader of the MDC.
+            if (value != null) {
+                MDC.put(key, value);
+            } else {
+                MDC.remove(key);
+            }
         }
 
         void restore() {
