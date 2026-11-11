@@ -24,7 +24,7 @@ A lightweight structured logging library for Java, inspired by Go's [log/slog](h
 
 **Gradle**
 ```kotlin
-implementation("io.github.merlimat.slog:slog:0.10.1")
+implementation("io.github.merlimat.slog:slog:0.10.2")
 ```
 
 **Maven**
@@ -32,7 +32,7 @@ implementation("io.github.merlimat.slog:slog:0.10.1")
 <dependency>
     <groupId>io.github.merlimat.slog</groupId>
     <artifactId>slog</artifactId>
-    <version>0.10.1</version>
+    <version>0.10.2</version>
 </dependency>
 ```
 
